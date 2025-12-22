@@ -87,10 +87,21 @@ def generate_commit_message(prompt, add_signature=False):
     """Sends prompt to Gemini API."""
     print("✨ Asking Gemini to generate the commit message...")
     
+    # --- 🧠 Architected Prompt ---
+    # We remove the word "text" from the end instructions to prevent hallucination.
+    # We use a strict "Role > Context > Constraint" structure.
     strict_prompt = (
-        "--- GIT CONTEXT ---\n"
-        f"{prompt}"
-        "The output MUST be only the raw commit message text."
+        "You are an expert developer writing a semantic git commit message.\n"
+        "Analyze the following git context and generate the message.\n"
+        "--- START GIT CONTEXT ---\n"
+        f"{prompt}\n"
+        "--- END GIT CONTEXT ---\n"
+        "Instructions:\n"
+        "1. Follow conventional commit format (type: subject).\n"
+        "2. OUTPUT ONLY the raw commit message.\n"
+        "3. Do NOT add any markdown formatting (like ```).\n"
+        "4. Do NOT add any introductory words (like 'Here is the message' or 'text').\n"
+        "5. Start your response DIRECTLY with the commit type (e.g., feat:, fix:, docs:)."
     )
 
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
