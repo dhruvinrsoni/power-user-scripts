@@ -1,0 +1,17 @@
+Setting	State	Comment
+Prevent changing color scheme	Not configured	No
+Prevent changing theme	Not configured	No
+Prevent changing visual style for windows and buttons	Not configured	No
+Enable screen saver	Not configured	No
+Prohibit selection of visual style font size	Not configured	No
+Prevent changing color and appearance	Not configured	No
+Prevent changing desktop background	Not configured	No
+Prevent changing desktop icons	Not configured	No
+Prevent changing mouse pointers	Not configured	No
+Prevent changing screen saver	Not configured	No
+Prevent changing sounds	Not configured	No
+Password protect the screen saver	Not configured	No
+Screen saver timeout	Enabled	No
+Force specific screen saver	Not configured	No
+Load a specific theme	Not configured	No
+Force a specific visual style file or force Windows Classic	Not configured	No
