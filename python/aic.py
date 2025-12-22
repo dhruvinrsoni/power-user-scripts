@@ -83,7 +83,7 @@ def get_prompt_from_git(alias_name):
         print(f"\n🚨 Error running 'git {alias_name}': {e.stderr}")
         sys.exit(1)
 
-def generate_commit_message(prompt, add_signature=False):
+def generate_commit_message(prompt, add_signature=True):
     """Sends prompt to Gemini API."""
     print("✨ Asking Gemini to generate the commit message...")
     
