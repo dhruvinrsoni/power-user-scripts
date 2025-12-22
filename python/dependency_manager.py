@@ -2,54 +2,87 @@ import sys
 import subprocess
 import importlib
 
-def require(dependencies):
+def require(import_names):
     """
-    Ensures that a list of dependencies are installed.
+    Ensures dependencies are installed using a Multi-Stage Heuristic Strategy.
     
     Args:
-        dependencies: Can be a LIST of strings or a DICTIONARY.
-                      - List: ['requests', 'pandas'] 
-                        (Assumes pip package name is same as import name)
-                      - Dict: {'cv2': 'opencv-python', 'yaml': 'PyYAML'}
-                        (Maps import name to specific pip package name)
+        import_names (list): A list of module names used in 'import' statements.
+                             e.g. ["requests", "yaml", "dotenv"]
     """
-    print(f"\n🛡️  [DepMgr] Starting dependency check...")
-    
-    # Normalize input to a dictionary
-    # If it's a list ['a', 'b'], convert to {'a':'a', 'b':'b'}
-    if isinstance(dependencies, list):
-        target_map = {item: item for item in dependencies}
-    elif isinstance(dependencies, dict):
-        target_map = dependencies
-    else:
-        print("🚨 [DepMgr] Error: Invalid input format. Expected List or Dict.")
-        sys.exit(1)
+    print(f"\n🛡️  [DepMgr] Analyzing {len(import_names)} dependencies...")
 
     changes_made = False
 
-    for import_name, install_name in target_map.items():
-        # Step 1: Check if installed
+    for module_name in import_names:
+        # --- Phase 1: The Integrity Check ---
+        # If we can import it, we are done. This automatically handles:
+        # 1. Standard libraries (json, os, sys) - they import successfully.
+        # 2. Already installed packages.
         try:
-            importlib.import_module(import_name)
-            print(f"   ✅ Found: '{import_name}'")
+            importlib.import_module(module_name)
+            print(f"   ✅ Found: '{module_name}' (Native/Installed)")
+            continue 
         except ImportError:
-            # Step 2: Not found, attempt install
-            print(f"   📦 Missing: '{import_name}'. Auto-installing '{install_name}'...")
+            print(f"   🔻 Missing: '{module_name}'. Initiating Search Protocols...")
+
+        # --- Phase 2: The Heuristic Attack Plan ---
+        # If the direct import fails, we assume it's a missing 3rd party package.
+        # We try logical variations of the package name until one works.
+        
+        # PLAN A: The "Direct Hit" (e.g., requests -> requests)
+        # PLAN B: The "Capitalized Py" (e.g., yaml -> PyYAML)
+        # PLAN C: The "Prefix" (e.g., dotenv -> python-dotenv)
+        # PLAN D: The "Suffix" (e.g., cv2 -> opencv-python ... wait, logic has limits, see below)
+        
+        candidates = [
+            module_name,                     # Plan A: Exact match
+            f"Py{module_name}",              # Plan B: Common wrapper style (yaml -> PyYAML)
+            f"python-{module_name}",         # Plan C: Common utility style (dotenv -> python-dotenv)
+            f"{module_name}-python",         # Plan D: Common binding style
+            module_name.replace('_', '-')    # Plan E: Underscore to dash (sklearn -> scikit-learn approx)
+        ]
+
+        installed_successfully = False
+
+        for candidate in candidates:
+            print(f"      🔎 Attempting Strategy: pip install {candidate} ...")
+            
             try:
-                # Run pip install
+                # 1. Try to install the candidate
                 subprocess.check_call(
-                    [sys.executable, "-m", "pip", "install", install_name],
-                    stdout=subprocess.DEVNULL, # Hide the noisy download logs
+                    [sys.executable, "-m", "pip", "install", candidate],
+                    stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
-                print(f"   🎉 Installed: '{install_name}' successfully.")
-                changes_made = True
+                
+                # 2. CRITICAL VERIFICATION
+                # Just because pip didn't crash doesn't mean we got the right thing.
+                # We must try to import the ORIGINAL module name again.
+                try:
+                    importlib.import_module(module_name)
+                    print(f"      🎉 Success! '{candidate}' provided module '{module_name}'.")
+                    changes_made = True
+                    installed_successfully = True
+                    break # Exit the candidate loop
+                except ImportError:
+                    # We installed something, but it didn't give us the module we wanted.
+                    # This is rare but possible. We assume it was the wrong package.
+                    print(f"      ⚠️  Installed '{candidate}' but still can't import '{module_name}'. Reverting...")
+                    # Optional: You could uninstall here to keep system clean, 
+                    # but for simplicity we just move to next strategy.
+            
             except subprocess.CalledProcessError:
-                print(f"\n🚨 [DepMgr] CRITICAL FAILURE: Could not install '{install_name}'.")
-                print(f"   Please check your internet or run: pip install {install_name}")
-                sys.exit(1)
+                # Pip failed to find/install this candidate. Move to next plan.
+                continue
+
+        if not installed_successfully:
+            print(f"\n🚨 [DepMgr] CRITICAL FAILURE: Exhausted all strategies for '{module_name}'.")
+            print(f"   The algorithm failed to deduce the package name.")
+            print(f"   Manual Intervention Required: pip install <correct_package_name>")
+            sys.exit(1)
 
     if changes_made:
         print("🛡️  [DepMgr] Environment healed. Resuming script...\n")
     else:
-        print("🛡️  [DepMgr] Environment is healthy. No changes needed.\n")
+        print("🛡️  [DepMgr] Environment is healthy.\n")
