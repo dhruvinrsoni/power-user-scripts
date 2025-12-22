@@ -174,7 +174,7 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
             subprocess.run(commit_command, check=True)
             print("\n🎉 Commit successful!\n---")
             subprocess.run(['git', '--no-pager', 'log', '-1', '--pretty=format:%C(yellow)%h%Creset %s %C(green)(%ar) %C(bold blue)<%an>%Creset%n%B%n'], check=True)
-            print("\n---\n")
+            print("---")
             if push:
                 print("\n✅ --push flag detected. Pushing to remote...")
                 subprocess.run(['git', 'push'], check=True)
