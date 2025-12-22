@@ -1,0 +1,65 @@
+# Objective: Generate PRs that clearly communicate enhancements and refactoring efforts, focusing on key aspects such as validation, logging, reusability, and configuration handling.
+
+1. Title
+Use a concise and descriptive title that captures the essence of the changes.
+
+2. Overview/Description
+Provide a brief overview of the primary objectives and scope of this pull request.
+
+3. Key Changes/Enhancements Section
+Organize changes into logical categories grouped by theme.
+Use bullet points to detail specific improvements and their benefits.
+Include references to specific changes by mentioning file names and line numbers, which reviewers can use to create manual links in GitHub.
+
+4. Commit Highlights/Details
+Group commits by theme (e.g., Logging, Refactoring, Integration, Tests).
+For each theme, summarize each commit with its short SHA and a human-friendly summary.
+Summarize each commit with its SHA in a 1-3 sentence paragraph.
+Suggest key lines or files changed, which can be linked manually using GitHub’s syntax.
+
+5. Benefits/Impact Section
+Analyze the code changes and refactorings. Summarize the overall impact and benefits list these changes bring to the project.
+
+6. Checklist and Testing Instructions (optional)
+Include a checklist to ensure all aspects are covered.
+Provide clear instructions for testing and validation.
+
+7. Known Issues or Limitations (optional)
+Identify any potential issues or limitations introduced by these changes.
+
+8. Documentation Updates
+List any documentation updates needed as a result of these changes.
+
+9. Conclusion
+Summarize the impact and encourage feedback.
+
+10. Review Notes
+Use GitHub’s inline comment feature to highlight specific lines or changes.
+Provide any specific questions or areas where reviewer feedback is needed.
+
+
+# Instructions for Writing PRs
+
+Craft a Descriptive Title: Reflect the key focus and nature of the changes.
+
+Provide a Clear Overview: Summarize the PR’s objectives and scope in a few sentences.
+
+Detail Key Changes: Organize changes into logical categories grouped by theme. Use bullet points for clarity and readability.
+
+Explain Commit Details: Group by theme, summarize each commit with its short SHA and a human-friendly summary.
+
+Summarize Impact: Clearly state the overall benefits and improvements.
+
+Include a Checklist (optional): Ensure all quality and project standards are met.
+
+Checklist(optional): Define the purpose and examples of checklist items with checkboxes.
+
+Testing Instructions(optional): Specify when to include testing details and what they might consist of.
+
+Highlight Key Changes: Use GitHub’s inline comment feature to draw attention to specific lines or changes.
+
+Provide Review Notes: Use GitHub’s review feature to add comments directly to the diffs.
+
+Maintain a Professional Tone: Use precise and clear language. Avoid unnecessary jargon, providing explanations if needed.
+
+Format: Keep the Title separate. Use markdown for the body.

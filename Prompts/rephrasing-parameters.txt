@@ -1,0 +1,6 @@
+1. Tone(Informal, Professtional, Academic, Playful), 
+2. Complexity(Simple, Intermediate, Advanced, Technical), 
+3, Style(Creative, Persuasive, Explanatory, Descriptive), 
+4. Length(Short and concise, Bullet count, Word count, None)
+5. Audience(Juniors, Same Level, Seniors, Layman, Expert)
+6. Structure(Paragraphs, Bullet points, List, Summary, Tables)
