@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess 
 
 # --- 🛡️ Self-Healing Header ---
 # 1. Import your local manager
@@ -11,11 +12,16 @@ except ImportError:
     sys.exit(1)
 
 # 2. Declare needs. { "import_name": "pip_package_name" }
-dependency_manager.require({
-    "requests": "requests",
-    # "yaml": "PyYAML",       # Ready for future use
-    # "dotenv": "python-dotenv" 
-})
+# Option A: The Smart List (Use this for 99% of packages)
+# It assumes 'import requests' means 'pip install requests'
+dependency_manager.require(["requests"]) 
+
+# Option B: The Explicit Dict (Only use if names differ)
+# dependency_manager.require({
+#     "requests": "requests",
+#     "yaml": "PyYAML",        # Import yaml, install PyYAML
+#     "cv2": "opencv-python"   # Import cv2, install opencv-python
+# })
 # ------------------------------
 
 # --- 🚀 Normal Imports (Guaranteed to work now) ---
