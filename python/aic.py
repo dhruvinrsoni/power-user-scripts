@@ -1,6 +1,24 @@
-import os
 import sys
-import subprocess
+import os
+
+# --- 🛡️ Self-Healing Header ---
+# 1. Import your local manager
+try:
+    import dependency_manager
+except ImportError:
+    # Fallback if the manager itself is missing (optional safety net)
+    print("🚨 Critical: 'dependency_manager.py' is missing from this folder.")
+    sys.exit(1)
+
+# 2. Declare needs. { "import_name": "pip_package_name" }
+dependency_manager.require({
+    "requests": "requests",
+    # "yaml": "PyYAML",       # Ready for future use
+    # "dotenv": "python-dotenv" 
+})
+# ------------------------------
+
+# --- 🚀 Normal Imports (Guaranteed to work now) ---
 import requests
 import warnings
 import argparse
