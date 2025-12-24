@@ -61,7 +61,6 @@ def interactive_add(debug_mode=False):
         pass # Ignore errors here, fzf will handle the main logic
         
     print("\n🚀 Launching interactive staging (fzf)...")
-
     try:
         # Run the user's custom alias. 
         subprocess.run(['git', 'adi'], capture_output=True, text=True, encoding='utf-8')
@@ -151,22 +150,28 @@ def generate_commit_message(prompt, include_signature=True):
         print(f"\n🚨 An error occurred with the Gemini API: {e}")
         sys.exit(1)
 
-def make_git_commit(message, dry_run=False, review=False, push=False, add_all=False):
+def make_git_commit(message, dry_run=False, review=False, push=False, add_all=False, can_regenerate=False):
     """Creates the git commit, allowing for a final review and edit."""
     if dry_run:
         print("\n✅ --- DRY RUN: COMMIT MESSAGE --- ✅\n" + message + "\n✅ --- END DRY RUN --- ✅\n")
         return
 
     commit_command = ['git', 'commit', '--no-quiet', '--verbose', '--branch', '--ahead-behind', '--status', '--signoff']
+    
     should_commit = False
     temp_file_name = None
 
     if review:
         print("\n🔎 --- REVIEW COMMIT MESSAGE --- 🔎\n" + message + "\n---------------------------------\n")
-        print("Proceed with this commit? (y/n/e): ", end='', flush=True)
+        
+        # Display 'g' option only if regeneration is allowed (token guardrail)
+        options_text = "(y/n/e/g)" if can_regenerate else "(y/n/e)"
+        print(f"Proceed with this commit? {options_text}: ", end='', flush=True)
+        
         key_press = msvcrt.getch()
-        print(key_press.decode('utf-8'))
-
+        decoded_key = key_press.decode('utf-8') # Decode for printing
+        print(decoded_key)
+        
         if key_press.lower() == b'y':
             print("\n👍 Approved. Committing...")
             commit_command.extend(['-m', message])
@@ -178,6 +183,8 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
                 temp_file_name = temp_file.name
             commit_command.extend(['-e', '-F', temp_file_name])
             should_commit = True
+        elif can_regenerate and key_press.lower() == b'g':
+            return "REGENERATE" # Signal to main loop
         else:
             print("\n❌ Aborted by user.")
             if add_all:
@@ -198,10 +205,12 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
             # or could be added here if you want it explicitly in the script logic.
             subprocess.run(['git', '--no-pager', 'log', '-1', '--pretty=format:%C(yellow)%h%Creset %s %C(green)(%ar) %C(bold blue)<%an>%Creset%n%B%n'], check=True)
             print("---")
+            
             if push:
                 print("\n✅ --push flag detected. Pushing to remote...")
                 subprocess.run(['git', 'push'], check=True)
                 print("\n🚀 Push successful!\n")
+                
         except subprocess.CalledProcessError:
             print("🚨 Error during git operation (or commit aborted in editor).")
         finally:
@@ -239,23 +248,23 @@ if __name__ == "__main__":
 | git aic file | Stage specific file(s) & Commit          | ➕ git add file ➔ ✨ AI Generates ➔ ✅ Commit                      |
 | git aic -d   | Dry Run (see message only)               | ✨ AI Generates ➔ 🧪 Show Message                                   |
 | git aic -r   | Review & Commit (approve AI message)     | ✨ AI Generates ➔ 🔎 Review                                         |
-|              |                                          | (y➔✅ Commit / e➔📝 Edit / n➔❌ Abort)                              |
+|              |                                          | (y➔✅ Commit / e➔📝 Edit / g➔🔄 Regen / n➔❌ Abort)                |
 | git aic -i   | Interactive Staging & Commit             | ➕ Select Files (fzf) ➔ ✨ AI Generates ➔ ✅ Commit                 |
 | git aic -a   | Add & Commit (stage and commit)          | ➕ Add All ➔ ✨ AI Generates ➔ ✅ Commit                            |
 | git aic -p   | Commit & Push (commit staged, then push) | ✨ AI Generates ➔ ✅ Commit ➔ 🚀 Push                               |
 |--------------|------------------------------------------|---------------------------------------------------------------------|
 | git aic -ar  | Add & Review (stage all, then approve)   | ➕ Add All ➔ ✨ AI... ➔ 🔎 Review                                   |
-|              |                                          | (y➔✅ Commit / e➔📝 Edit / n➔🧹 Unstage)                            |
+|              |                                          | (y➔✅ Commit / e➔📝 Edit / g➔🔄 Regen / n➔🧹 Unstage)              |
 | git aic -ir  | Interactively Stage, then Review         | ➕ Select Files (fzf) ➔ ✨ AI... ➔ 🔎 Review                        |
-|              |                                          | (y➔✅ Commit / e➔📝 Edit / n➔❌ Abort)                              |
+|              |                                          | (y➔✅ Commit / e➔📝 Edit / g➔🔄 Regen / n➔❌ Abort)                 |
 | git aic -ap  | The "One-Shot" (add, commit, push)       | ➕ Add All ➔ ✨ AI... ➔ ✅ Commit ➔ 🚀 Push                         |
 | git aic -ad  | Safe Preview (see msg for all changes)   | ➕ Add All ➔ ✨ AI... ➔ 🧪 Show ➔ 🧹 Unstage                        |
 | git aic -rp  | Review & Push (approve msg, then push)   | ✨ AI... ➔ 🔎 Review                                                |
-|              |                                          | (y➔✅ Commit ➔ 🚀 Push / e➔📝 Edit / n➔❌ Abort)                    |
+|              |                                          | (y➔✅ Commit ➔ 🚀 Push / e➔📝 Edit / g➔🔄 Regen / n➔❌ Abort)       |
 |--------------|------------------------------------------|---------------------------------------------------------------------|
 | git aic -irp | Ultimate Control Workflow                | ➕ Select Files (fzf) ➔ ✨ AI... ➔ 🔎 Review ➔ ✅ Commit ➔ 🚀 Push |
 | git aic -arp | The Ultimate Workflow                    | ➕ Add All ➔ ✨ AI... ➔ 🔎 Review                                   |
-|              |                                          | (y➔✅ Commit ➔ 🚀 Push / e➔📝 Edit / n➔🧹 Unstage)                  |
+|              |                                          | (y➔✅ Commit ➔ 🚀 Push / e➔📝 Edit / g➔🔄 Regen / n➔🧹 Unstage)     |
 |-------------------------------------------------------------------------------------------------------------------------------|
     """
     
@@ -282,7 +291,6 @@ if __name__ == "__main__":
     
     # --- Flag for Debugging Dependency Manager (Captured by dep mgr, but listed here for help text) ---
     parser.add_argument('--debug', action='store_true', help="Enable verbose logging for dependency manager.")
-
     args = parser.parse_args()
 
     # --- NEW STAGING LOGIC ---
@@ -312,18 +320,35 @@ if __name__ == "__main__":
     
     prompt = get_prompt_from_git("cinfo")
     
-    # Pass the INVERSE.
-    # If --no-watermark is True, include_signature becomes False.
-    commit_message = generate_commit_message(prompt, include_signature=not args.no_watermark)
+    # --- RETRY LOGIC (Max 2 Retries = 3 total generations) ---
+    MAX_RETRIES = 2
+    attempts_done = 0
     
-    make_git_commit(
-        commit_message,
-        dry_run=args.dry_run,
-        review=args.review,
-        push=args.push,
-        add_all=(args.add_all or args.aa)
-    )
-
+    while True:
+        # Pass the INVERSE.
+        # If --no-watermark is True, include_signature becomes False.
+        commit_message = generate_commit_message(prompt, include_signature=not args.no_watermark)
+        
+        # Determine if we allow regeneration (only if we haven't hit the cap)
+        allow_regen = (attempts_done < MAX_RETRIES)
+        
+        result = make_git_commit(
+            commit_message,
+            dry_run=args.dry_run,
+            review=args.review,
+            push=args.push,
+            add_all=(args.add_all or args.aa),
+            can_regenerate=allow_regen
+        )
+        
+        if result == "REGENERATE":
+            attempts_done += 1
+            print(f"\n🔄 Regenerating commit message... (Retry {attempts_done}/{MAX_RETRIES})")
+            continue
+        
+        # If we got here, it means we committed, dry-run finished, or user aborted inside make_git_commit
+        break
+    
     if (args.add_all or args.aa) and args.dry_run:
         print("\n🧹 --add-all and --dry-run detected. Unstaging files to clean up...")
         subprocess.run(['git', 'restore', '--staged', '.'], check=True)
