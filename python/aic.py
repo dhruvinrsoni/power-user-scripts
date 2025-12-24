@@ -45,7 +45,7 @@ except KeyError:
 
 # --- Main Functions ---
 
-def interactive_add():
+def interactive_add(debug_mode=False):
     """
     Triggers 'git adi' (interactive fzf staging) with improved UX.
     Shows status before and summary after.
@@ -56,7 +56,7 @@ def interactive_add():
     print("\n📂 Current Status (Untracked/Modified):")
     try:
         # -s: Short format, -b: Show branch info
-        subprocess.run(['git', 'status', '-sb'], check=True)
+        subprocess.run(['git', 'status', '-sb', '-uall'], check=True)
     except subprocess.CalledProcessError:
         pass # Ignore errors here, fzf will handle the main logic
         
