@@ -216,6 +216,7 @@ if __name__ == "__main__":
 # | Command      | Use Case                                  | User Flow Visualization                                                                 |
 # |--------------|-------------------------------------------|-----------------------------------------------------------------------------------------|
 # | git aic      | Quick Commit (files already staged)       | ✨ AI Generates ➔ ✅ Commit                                                                 |
+# | git aic file | Stage specific file(s) & Commit          | ➕ git add file ➔ ✨ AI Generates ➔ ✅ Commit                                              |
 # | git aic -d   | Dry Run (see message only)                | ✨ AI Generates ➔ 🧪 Show Message                                                           |
 # | git aic -i   | Interactive Staging & Commit              | ➕ Select Files (fzf) ➔ ✨ AI Generates ➔ ✅ Commit                                       |
 # | git aic -a   | Add All & Commit (stage everything)       | ➕ Add All ➔ ✨ AI Generates ➔ ✅ Commit                                                  |
@@ -230,11 +231,12 @@ if __name__ == "__main__":
 # -------------------------------------------------------------------------------------------------------------------------------
     # """
     epilog_text = """
-                     Usage Examples & Workflows
+                      Usage Examples & Workflows
 |-------------------------------------------------------------------------------------------------------------------------------|
 | Command      | Use Case                                 | User Flow Visualization                                             |
 |--------------|------------------------------------------|---------------------------------------------------------------------|
 | git aic      | Quick Commit (files already staged)      | ✨ AI Generates ➔ ✅ Commit                                         |
+| git aic file | Stage specific file(s) & Commit          | ➕ git add file ➔ ✨ AI Generates ➔ ✅ Commit                      |
 | git aic -d   | Dry Run (see message only)               | ✨ AI Generates ➔ 🧪 Show Message                                   |
 | git aic -r   | Review & Commit (approve AI message)     | ✨ AI Generates ➔ 🔎 Review                                         |
 |              |                                          | (y➔✅ Commit / e➔📝 Edit / n➔❌ Abort)                              |
@@ -263,6 +265,9 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter
     )
     
+    # --- CHANGED: Positional Arguments for Files ---
+    parser.add_argument('files', metavar='FILES', nargs='*', help="Specific files to add/stage automatically.")
+
     parser.add_argument('-d', '-n', '--dry-run', action='store_true', help="Print message without committing.")
     parser.add_argument('-r', '--review', action='store_true', help="Review message before committing [y/n/e].")
     parser.add_argument('-a', '--add-all', action='store_true', help="Stage all changes before committing (git add .).") # Hidden alias for --add-all
@@ -281,6 +286,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # --- NEW STAGING LOGIC ---
+    # 1. Check for specific files passed as arguments
+    if args.files:
+        print(f"\n✅ File arguments detected. Staging: {', '.join(args.files)}")
+        try:
+            # We append '-v' to see verbose output of what git is adding
+            subprocess.run(['git', 'add', '-v'] + args.files, check=True)
+            print("---")
+        except subprocess.CalledProcessError:
+            print("🚨 Error: Could not add specified files. Check filenames and try again.")
+            sys.exit(1)
+
+    # 2. Check for other staging flags
     if args.interactive_add:
         # Pass the debug flag to the function
         interactive_add(debug_mode=args.debug)
@@ -290,7 +307,7 @@ if __name__ == "__main__":
         print("---")
 
     if subprocess.run(['git', 'diff', '--staged', '--quiet']).returncode == 0:
-        print("\n🤷 No changes staged for commit. Use 'git add' with or without flags.")
+        print("\n🤷 No changes staged for commit. Use 'git add' or pass filenames to this script.")
         sys.exit(0)
     
     prompt = get_prompt_from_git("cinfo")
