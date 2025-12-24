@@ -1,0 +1,263 @@
+﻿######## POSH-GIT
+
+# ... Import-Module for posh-git here ...
+Import-Module 'C:\tools\poshgit\dahlbyk-posh-git-9bda399\src\posh-git.psd1'
+# Background colors
+
+#$GitPromptScriptBlock.AfterStash.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.AfterStatus.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.BeforeIndex.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.BeforeStash.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.BeforeStatus.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.BranchAheadStatusSymbol.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.BranchBehindAndAheadStatusSymbol.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.BranchBehindStatusSymbol.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.BranchColor.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.BranchGoneStatusSymbol.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.BranchIdenticalStatusSymbol.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.DefaultColor.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.DelimStatus.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.ErrorColor.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.IndexColor.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.LocalDefaultStatusSymbol.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.LocalStagedStatusSymbol.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.LocalWorkingStatusSymbol.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.StashColor.BackgroundColor = 0x3465A4
+#$GitPromptScriptBlock.WorkingColor.BackgroundColor = 0x3465A4
+
+# Foreground colors
+
+#$GitPromptScriptBlock.AfterStash.ForegroundColor = 0xF49797
+#$GitPromptScriptBlock.AfterStatus.ForegroundColor = 0x729FCF
+#$GitPromptScriptBlock.BeforeStash.ForegroundColor = 0xF49797
+#$GitPromptScriptBlock.BeforeStatus.ForegroundColor = 0x729FCF
+#$GitPromptScriptBlock.BranchAheadStatusSymbol.ForegroundColor = 0x8AE234
+#$GitPromptScriptBlock.BranchBehindAndAheadStatusSymbol.ForegroundColor = 0xFCE94F
+#$GitPromptScriptBlock.BranchBehindStatusSymbol.ForegroundColor = 0xF49797
+#$GitPromptScriptBlock.BranchColor.ForegroundColor = 0xFBFBFB
+#$GitPromptScriptBlock.BranchGoneStatusSymbol.ForegroundColor = 0x729FCF
+#$GitPromptScriptBlock.BranchIdenticalStatusSymbol.ForegroundColor = 0x729FCF
+#$GitPromptScriptBlock.DefaultColor.ForegroundColor = 0xB5BBAE
+#$GitPromptScriptBlock.DelimStatus.ForegroundColor = 0x729FCF
+#$GitPromptScriptBlock.ErrorColor.ForegroundColor = 0xF49797
+#$GitPromptScriptBlock.IndexColor.ForegroundColor = 0x2EC3C3
+#$GitPromptScriptBlock.StashColor.ForegroundColor = 0xF49797
+#$GitPromptScriptBlock.WorkingColor.ForegroundColor = 0xFCE94F
+
+# Prompt shape
+
+#$GitPromptScriptBlock.AfterStatus.Text = " "
+#$GitPromptScriptBlock.BeforeStatus.Text = "  "
+#$GitPromptScriptBlock.BranchAheadStatusSymbol.Text = ""
+#$GitPromptScriptBlock.BranchBehindStatusSymbol.Text = ""
+#$GitPromptScriptBlock.BranchGoneStatusSymbol.Text = ""
+#$GitPromptScriptBlock.BranchBehindAndAheadStatusSymbol.Text = ""
+#$GitPromptScriptBlock.BranchIdenticalStatusSymbol.Text = ""
+#$GitPromptScriptBlock.BranchUntrackedText = ""
+#$GitPromptScriptBlock.DelimStatus.Text = " ॥"
+#$GitPromptScriptBlock.LocalStagedStatusSymbol.Text = ""
+#$GitPromptScriptBlock.LocalWorkingStatusSymbol.Text = ""
+
+#$GitPromptScriptBlock.EnableStashStatus = $false
+#$GitPromptScriptBlock.ShowStatusWhenZero = $false
+
+######## INI FILE PARSER
+
+function parseIniFile {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)]
+        [String] $Inputfile
+    )
+
+    if ($Inputfile -eq "") {
+        Write-Error "Ini File Parser: No file specified or selected to parse."
+        Break
+    }
+    else {
+
+        $ContentFile = Get-Content $Inputfile
+        # commented Section
+        $COMMENT_CHARACTERS = ";"
+        # match section header
+        $HEADER_REGEX = "\[+[A-Z0-9._ %<>/#+-]+\]"
+
+        $OccurenceOfComment = 0
+        $ContentComment = $ContentFile | Where-Object { ($_ -match "^\s*$COMMENT_CHARACTERS") -or ($_ -match "^$COMMENT_CHARACTERS") } | % {
+            [PSCustomObject]@{ Comment = $_ ;
+                Index                  = [Array]::IndexOf($ContentFile, $_)
+            }
+            $OccurenceOfComment++
+        }
+
+        $COMMENT_INI = @()
+        foreach ($COMMENT_ELEMENT in $ContentComment) {
+            $COMMENT_OBJ = New-Object PSObject
+            $COMMENT_OBJ | Add-Member  -type NoteProperty -name Index -value $COMMENT_ELEMENT.Index
+            $COMMENT_OBJ | Add-Member  -type NoteProperty -name Comment -value $COMMENT_ELEMENT.Comment
+            $COMMENT_INI += $COMMENT_OBJ
+        }
+
+        $CONTENT_USEFUL = $ContentFile | Where-Object { ($_ -notmatch "^\s*$COMMENT_CHARACTERS") -or ($_ -notmatch "^$COMMENT_CHARACTERS") }
+        $ALL_SECTION_HASHTABLE = $CONTENT_USEFUL | Where-Object { $_ -match $HEADER_REGEX } | % { [PSCustomObject]@{ Section = $_ ; Index = [Array]::IndexOf($CONTENT_USEFUL, $_) } }
+        #$ContentUncomment | Select-String -AllMatches $HEADER_REGEX | Select-Object -ExpandProperty Matches
+
+        $SECTION_INI = @()
+        foreach ($SECTION_ELEMENT in $ALL_SECTION_HASHTABLE) {
+            $SECTION_OBJ = New-Object PSObject
+            $SECTION_OBJ | Add-Member  -type NoteProperty -name Index -value $SECTION_ELEMENT.Index
+            $SECTION_OBJ | Add-Member  -type NoteProperty -name Section -value $SECTION_ELEMENT.Section
+            $SECTION_INI += $SECTION_OBJ
+        }
+
+        $INI_FILE_CONTENT = @()
+        $NBR_OF_SECTION = $SECTION_INI.count
+        $NBR_MAX_LINE = $CONTENT_USEFUL.count
+
+        #*********************************************
+        # select each lines and value of each section
+        #*********************************************
+        for ($i = 1; $i -le $NBR_OF_SECTION ; $i++) {
+            if ($i -ne $NBR_OF_SECTION) {
+                if (($SECTION_INI[$i - 1].Index + 1) -eq ($SECTION_INI[$i].Index )) {
+                    $CONVERTED_OBJ = @() #There is nothing between the two section
+                }
+                else {
+                    $SECTION_STRING = $CONTENT_USEFUL | Select-Object -Index  (($SECTION_INI[$i - 1].Index + 1)..($SECTION_INI[$i].Index - 1)) | Out-String
+                    $CONVERTED_OBJ = convertfrom-stringdata -stringdata $SECTION_STRING
+                }
+            }
+            else {
+                if (($SECTION_INI[$i - 1].Index + 1) -eq $NBR_MAX_LINE) {
+                    $CONVERTED_OBJ = @() #There is nothing between the two section
+                }
+                else {
+                    $SECTION_STRING = $CONTENT_USEFUL | Select-Object -Index  (($SECTION_INI[$i - 1].Index + 1)..($NBR_MAX_LINE - 1)) | Out-String
+                    $CONVERTED_OBJ = convertfrom-stringdata -stringdata $SECTION_STRING
+                }
+            }
+            $CURRENT_SECTION = New-Object PSObject
+            $CURRENT_SECTION | Add-Member -Type NoteProperty -Name Section -Value $SECTION_INI[$i - 1].Section
+            $CURRENT_SECTION | Add-Member -Type NoteProperty -Name Content -Value $CONVERTED_OBJ
+            $INI_FILE_CONTENT += $CURRENT_SECTION
+        }
+
+        return $INI_FILE_CONTENT
+    }
+}
+
+######## PROMPT
+
+set-content Function:prompt {
+    # Start with a blank line, for breathing room :)
+    Write-Host ""
+
+    # Reset the foreground color to default
+    $Host.UI.RawUI.ForegroundColor = "Gray"
+
+    # Write ERR for any PowerShell errors
+    if ($Error.Count -ne 0) {
+        Write-Host " $([char]27)[38;5;227;48;5;131m  ERR $([char]27)[0m" -NoNewLine
+        $Error.Clear()
+    }
+
+    # Write non-zero exit code from last launched process
+    if ($LASTEXITCODE -ne "") {
+        Write-Host " $([char]27)[38;5;227;48;5;131m  $LASTEXITCODE $([char]27)[0m" -NoNewLine
+        $NextForegroundColor = "131"
+        $LASTEXITCODE = ""
+    }
+
+    # Write any custom prompt environment (f.e., from vs2019.ps1)
+    if (get-content variable:\PromptEnvironment -ErrorAction Ignore) {
+        Write-Host " $([char]27)[38;5;54;48;5;183m$PromptEnvironment$([char]27)[0m" -NoNewLine
+    }
+
+    # Write .NET SDK version
+    if ($null -ne (Get-Command "dotnet" -ErrorAction Ignore)) {
+        $dotNetVersion = (& dotnet --version)
+        Write-Host " $([char]27)[38;5;254;48;5;54m  $dotNetVersion $([char]27)[0m" -NoNewLine
+    }
+
+    # Write the current kubectl context
+    if ($null -ne (Get-Command "kubectl" -ErrorAction Ignore)) {
+        $currentContext = (& kubectl config current-context 2> $null)
+        if ($Error.Count -eq 0) {
+            Write-Host " $([char]27)[38;5;112;48;5;242m  $([char]27)[38;5;254m$currentContext $([char]27)[0m" -NoNewLine
+        }
+        else {
+            $Error.Clear()
+        }
+    }
+
+    # Write the current public cloud Azure CLI subscription
+    # NOTE: You will need sed from somewhere (for example, from Git for Windows)
+    if (Test-Path ~/.azure/clouds.config) {
+        $cloudsConfig = parseIniFile ~/.azure/clouds.config
+        $azureCloud = $cloudsConfig | Where-Object { $_.Section -eq "[AzureCloud]" }
+        if ($null -ne $azureCloud) {
+            $currentSub = $azureCloud.Content.subscription
+            if ($null -ne $currentSub) {
+                $currentAccount = (Get-Content ~/.azure/azureProfile.json | ConvertFrom-Json).subscriptions | Where-Object { $_.id -eq $currentSub }
+                if ($null -ne $currentAccount) {
+                    Write-Host " $([char]27)[38;5;227;48;5;30m  $([char]27)[38;5;254m$($currentAccount.name) $([char]27)[0m" -NoNewLine
+                }
+            }
+        }
+    }
+
+    # Write the current Git information
+    if ($null -ne (Get-Command "Get-GitDirectory" -ErrorAction Ignore)) {
+        if (Get-GitDirectory -ne $null) {
+            Write-Host (Write-VcsStatus) -NoNewLine
+        }
+    }
+
+    # Write the current directory, with home folder normalized to ~
+    $currentPath = (get-location).Path.replace($home, "~")
+    $idx = $currentPath.IndexOf("::")
+    if ($idx -gt -1) { $currentPath = $currentPath.Substring($idx + 2) }
+    $host.UI.RawUI.WindowTitle=$currentPath
+
+    Write-Host " $([char]27)[38;5;227;48;5;28m  $([char]27)[38;5;254m$currentPath $([char]27)[0m " -NoNewline
+
+    # Reset LASTEXITCODE so we don't show it over and over again
+    $global:LASTEXITCODE = 0
+
+    # Write one + for each level of the pushd stack
+    if ((get-location -stack).Count -gt 0) {
+        Write-Host " " -NoNewLine
+        Write-Host (("+" * ((get-location -stack).Count))) -NoNewLine -ForegroundColor Cyan 
+        #Write-Host "$([char]27)[0m " -NoNewline
+    }
+
+    # Newline
+    Write-Host "$([char]27)[0m"
+
+    # Determine if the user is admin, so we color the prompt green or red
+    $isAdmin = $false
+    $isDesktop = ($PSVersionTable.PSEdition -eq "Desktop")
+
+    if ($isDesktop -or $IsWindows) {
+        $windowsIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+        $windowsPrincipal = new-object 'System.Security.Principal.WindowsPrincipal' $windowsIdentity
+        $isAdmin = $windowsPrincipal.IsInRole("Administrators") -eq 1
+    }
+    else {
+        $isAdmin = ((& id -u) -eq 0)
+    }
+
+    if ($isAdmin) { $color = "Red"; }
+    else { $color = "Green"; }
+
+    # Write PS> for desktop PowerShell, pwsh> for PowerShell Core
+    if ($isDesktop) {
+        Write-Host " PS>" -NoNewLine -ForegroundColor $color
+    }
+    else {
+        Write-Host " pwsh>" -NoNewLine -ForegroundColor $color
+    }
+
+    # Always have to return something or else we get the default prompt
+    return " "
+}

@@ -1,4 +1,5 @@
-﻿powershell -noprofile -Window Maximized -Command "exit"
+﻿Write-Host "Running $($MyInvocation.MyCommand.Name) (Path: $($MyInvocation.MyCommand.Path))"
+powershell -noprofile -Window Maximized -Command "exit"
 #powershell -noprofile -Window Minimized -Command "exit"
 
 ######## POSH-GIT
