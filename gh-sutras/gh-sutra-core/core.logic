@@ -1,0 +1,19 @@
+# -- Create a PR, auto-fill with commit data, and open in browser.
+# -- Sutra: "Announce your work with a single word."
+gh alias set pr-create "pr create --fill --web"
+
+# -- View the current repository in the browser.
+# -- Sutra: "See the home of your code."
+gh alias set repo-view "repo view --web"
+
+# -- List all open pull requests assigned to you.
+# -- Sutra: "See the work that awaits your wisdom."
+gh alias set my-prs "pr list --assignee '@me'"
+
+# -- List all open issues assigned to you.
+# -- Sutra: "Know the challenges you must face."
+gh alias set my-issues "issue list --assignee '@me'"
+
+# -- Sync a forked repository to keep it up-to-date.
+# -- Sutra: "Drink from the source to stay current."
+gh alias set repo-sync "repo sync"

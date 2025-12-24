@@ -1,0 +1,1 @@
+!gh pr list --limit 100 | fzf --prompt="Switch to PR > " | awk '{print $1}' | xargs gh pr checkout
