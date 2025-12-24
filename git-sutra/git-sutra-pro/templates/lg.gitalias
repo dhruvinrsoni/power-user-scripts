@@ -1,1 +1,0 @@
-!f() { git log --graph --color=always --format='%C(auto)%h%d %s %C(green)(%cr) %C(bold blue)<%an>' "$@" | fzf --ansi --no-sort --reverse --tiebreak=index --bind=ctrl-d:reload-sync,ctrl-s:toggle-sort,ctrl-f:preview-page-down,ctrl-b:preview-page-up --preview-window=right:60% --preview 'git show --color=always {1}' ; }; f
