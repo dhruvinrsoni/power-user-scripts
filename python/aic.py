@@ -80,7 +80,7 @@ def interactive_add(debug_mode=False):
         # 4. Debug Mode: Deep Inspection
         if debug_mode:
             print("\n🐛 [DEBUG] Full Staged Diff:")
-            subprocess.run(['git', 'diff', '--staged'], check=True)
+            subprocess.run(['git', '--no-pager', 'diff', '--staged'], check=True)
             
         print("\n---") 
     except FileNotFoundError:
