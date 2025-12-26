@@ -347,31 +347,21 @@ if __name__ == "__main__":
         except subprocess.CalledProcessError as e:
             print(f"🚨 Error displaying placeholders: {e}")
             placeholders = []
-        else:
-            if placeholders:
-                # Prompt for each placeholder value
-                filled_values = {}
-                print("\nEnter values for each placeholder (press Enter to skip):")
-                for ph in placeholders:
-                    value = input(f"{ph} ").strip()
+        
+        if placeholders:
+            # Prompt for each placeholder value
+            filled_values = {}
+            print("\nEnter values for each placeholder (press Enter to skip):")
+            for ph in placeholders:
+                value = input(f"{ph} ").strip()
+                if value:
                     filled_values[ph] = value
-                
-                # Replace empty lines after placeholders in the prompt
-                lines = prompt.split('\n')
-                new_lines = []
-                i = 0
-                while i < len(lines):
-                    line = lines[i]
-                    new_lines.append(line)
-                    for ph in placeholders:
-                        if ph in line and filled_values[ph]:
-                            # Check if next line is empty
-                            if i + 1 < len(lines) and lines[i + 1].strip() == '':
-                                new_lines.append(filled_values[ph])
-                                i += 1  # Skip the empty line
-                                break
-                    i += 1
-                prompt = '\n'.join(new_lines)
+            
+            # Append filled placeholders to the prompt
+            if filled_values:
+                prompt += "\n\n## Filled Placeholders:"
+                for ph, val in filled_values.items():
+                    prompt += f"\n{ph} {val}"
     
     # --- RETRY LOGIC (Max 2 Retries = 3 total generations) ---
     MAX_RETRIES = 2
