@@ -112,7 +112,7 @@ git config --global alias.untracked "ls-files --others --exclude-standard"
 :: git config --global alias.comitinfo "^!git comit --no-quiet --verbose --branch --ahead-behind --status --short & git comit --no-quiet --verbose --branch --ahead-behind --status"
 git config --global alias.copystaged "!git diff --staged | clip"
 git config --global alias.gui "^!gitk"
-git config --global alias.s "^!git status -sb --show-stash --ahead-behind && git diff --staged --stat"
+git config --global alias.s "^!git status -vb --show-stash --ahead-behind && git diff --staged --stat"
 git config --global alias.sta "^!git status -sb -uall --show-stash --ahead-behind && git diff --staged --stat && git diff --stat"
 git config --global alias.staged "!git status -sb && echo ---  && git status -b && echo --- && git diff --staged --stat && echo --- && git diff --staged"
 
