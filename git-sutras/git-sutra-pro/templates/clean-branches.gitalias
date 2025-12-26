@@ -1,0 +1,8 @@
+!f() { 
+  git fetch --prune && 
+  git branch -vv | 
+  grep ': gone]' | 
+  awk '{print $1}' | 
+  fzf --multi --prompt="Select branches to DELETE > " --preview="git log --oneline --graph -n 20 {1}" | 
+  xargs -r git branch -D 
+}; f
