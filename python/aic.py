@@ -291,6 +291,7 @@ if __name__ == "__main__":
     
     # --- Flag for Debugging Dependency Manager (Captured by dep mgr, but listed here for help text) ---
     parser.add_argument('--debug', action='store_true', help="Enable verbose logging for dependency manager.")
+    parser.add_argument('--fill-placeholders', action='store_true', help="Prompt to fill placeholders in the cinfo prompt for additional context.")
     args = parser.parse_args()
 
     # --- NEW STAGING LOGIC ---
@@ -319,6 +320,53 @@ if __name__ == "__main__":
         sys.exit(0)
     
     prompt = get_prompt_from_git("cinfo")
+    
+    if args.fill_placeholders:
+        # Display placeholders for reference and parse them
+        print("\n📝 Placeholders for additional context:")
+        try:
+            result = subprocess.run(['git', 'commitplaceholders'], capture_output=True, text=True, check=True)
+            placeholders_output = result.stdout
+            print(placeholders_output.strip())
+            
+            # Parse placeholders from output
+            lines = placeholders_output.split('\n')
+            placeholders = []
+            in_section = False
+            for line in lines:
+                if line.startswith('## Placeholders for Manual Input:'):
+                    in_section = True
+                    continue
+                if in_section and line.strip().endswith(':') and not line.startswith('##'):
+                    placeholders.append(line.strip())
+        except subprocess.CalledProcessError as e:
+            print(f"🚨 Error displaying placeholders: {e}")
+            placeholders = []
+        else:
+            if placeholders:
+                # Prompt for each placeholder value
+                filled_values = {}
+                print("\nEnter values for each placeholder (press Enter to skip):")
+                for ph in placeholders:
+                    value = input(f"{ph} ").strip()
+                    filled_values[ph] = value
+                
+                # Replace empty lines after placeholders in the prompt
+                lines = prompt.split('\n')
+                new_lines = []
+                i = 0
+                while i < len(lines):
+                    line = lines[i]
+                    new_lines.append(line)
+                    for ph in placeholders:
+                        if ph in line and filled_values[ph]:
+                            # Check if next line is empty
+                            if i + 1 < len(lines) and lines[i + 1].strip() == '':
+                                new_lines.append(filled_values[ph])
+                                i += 1  # Skip the empty line
+                                break
+                    i += 1
+                prompt = '\n'.join(new_lines)
     
     # --- RETRY LOGIC (Max 2 Retries = 3 total generations) ---
     MAX_RETRIES = 2
