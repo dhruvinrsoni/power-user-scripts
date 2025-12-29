@@ -164,9 +164,18 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
     if review:
         print("\n🔎 --- REVIEW COMMIT MESSAGE --- 🔎\n" + message + "\n---------------------------------\n")
         
+        # Display clear options menu
+        print("Choose an action:")
+        print("  [y] Yes - Commit with this message")
+        print("  [n] No - Abort the commit")
+        print("  [e] Edit - Open editor to modify the message")
+        if can_regenerate:
+            print("  [g] Generate - Create a new message")
+        print()
+        
         # Display 'g' option only if regeneration is allowed (token guardrail)
         options_text = "(y/n/e/g)" if can_regenerate else "(y/n/e)"
-        print(f"Proceed with this commit? {options_text}: ", end='', flush=True)
+        print(f"Enter your choice {options_text}: ", end='', flush=True)
         
         key_press = msvcrt.getch()
         decoded_key = key_press.decode('utf-8') # Decode for printing
