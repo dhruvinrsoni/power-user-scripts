@@ -41,7 +41,7 @@ git config --global mergetool.vscode.cmd "code --wait $MERGED"
 git config --global diff.tool vscode
 git config --global difftool.vscode.cmd "code --wait --diff $LOCAL $REMOTE"
 
-git config --global alias.dhruvinrsoni "^!git config --get user.name && git config --get user.email && git config user.name 'Dhruvin Rupesh Soni' && git config user.email dhruvinrsoni@gmail.com && git config --get user.name && git config --get user.email"
+git config --global alias.dhruvinrsoni "^!git config --get user.name && git config --get user.email && git config user.name 'Dhruvin Rupesh Soni' && git config user.email dhruvinrsoni@gmail.com && git config --get user.name && git config --get user.email && gh auth status && gh auth switch --user dhruvinrsoni && gh auth status"
 
 @echo on
 git config --global --remove-section alias
@@ -122,7 +122,7 @@ git config --global alias.ac "^!f() { git adi \"$@\"; git comit; git --no-pager 
 git config --global alias.acp "^!f() { git ac \"$@\"; git push; }; f"
 :: git config --global alias.adi "^!f() { git add -- $(git status --short | awk '{print $2}' | fzf --cycle -m) $@; git status -vb --show-stash --ahead-behind; echo; git --no-pager diff --staged --stat; }; f"
 git config --global alias.adi "^!f() { if [ $# -eq 0 ]; then git add -- $(git status --porcelain | awk '{sub(/^[ MADRCU?]{2} /, \"\"); print}' | fzf --cycle -m | sed 's/\\ /\\\\ /g') $@; else git add \"$@\"; fi; git status -vb --show-stash --ahead-behind; echo; git --no-pager diff --staged --stat; }; f"
-git config --global alias.aic "^!f() { python '%ROOT%/github/dhruvinrsoni/power-user-scripts/python/aic.py' "$@"; git --no-pager unpushed; }; f"
+git config --global alias.aic "^!f() { python '%ROOT%/github/dhruvinrsoni/power-user-scripts/python/aic.py' "$@"; }; f"
 :: git config --global alias.ahead-behind "^!f() { upstream=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null); if \[ -z \"$1\" \] && \[ -z \"$upstream\" \]; then echo '[ERROR] Current branch has no upstream. Please specify a branch to compare against.'; echo 'Usage: git ahead-behind <base-branch>'; return 1; fi; base_branch=${1:-$(echo $upstream | sed 's#origin/##')}; remote_branch=\"origin/$base_branch\"; summary=$(git rev-list --left-right --count $remote_branch...HEAD); behind=$(echo \"$summary\" | awk '{print $1}'); ahead=$(echo \"$summary\" | awk '{print $2}'); echo '---'; echo \"Comparison with: $remote_branch\"; echo '---'; echo \"[Behind]: $behind commits\"; echo \"[Ahead]:  $ahead commits\"; echo '---'; git log --left-right --graph --cherry-pick --oneline \"$remote_branch...HEAD\"; }; f"
 git config --global alias.asc "^!f() { git adi \"$@\"; git cinfo|clip; git comit; git --no-pager unpushed; }; f"
 :: git config --global alias.ascp "^!f() { if [ $# -eq 0 ]; then git adi; else git add \"$@\"; fi; git cinfo | clip && git comit && git unpushed && git push; }; f"
