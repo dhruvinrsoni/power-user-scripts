@@ -95,7 +95,8 @@ def require(dependencies: Union[List[str], Dict[str, str]]) -> None:
         except ImportError:
             pass # Move to resolution logic
 
-        print(f"   🔻 Missing: '{import_name}'. Resolving Package Name...")
+        if debug_mode:
+            print(f"   🔻 Missing: '{import_name}'. Resolving Package Name...")
 
         # --- Resolution Logic ---
         candidate_name = None
@@ -117,7 +118,8 @@ def require(dependencies: Union[List[str], Dict[str, str]]) -> None:
             strategy = "Standard Name Match"
 
         # --- Installation Execution ---
-        print(f"      🔎 Strategy: {strategy} -> Installing '{candidate_name}'...")
+        if debug_mode:
+            print(f"      🔎 Strategy: {strategy} -> Installing '{candidate_name}'...")
         
         try:
             # We use sys.executable to ensure we install to the RUNNING environment.
@@ -130,7 +132,8 @@ def require(dependencies: Union[List[str], Dict[str, str]]) -> None:
             # Critical Verification: Did the install actually fix the import?
             try:
                 importlib.import_module(import_name)
-                print(f"      🎉 Success! '{candidate_name}' installed.")
+                if debug_mode:
+                    print(f"      🎉 Success! '{candidate_name}' installed.")
                 changes_made = True
             except ImportError:
                 print(f"      ⚠️  Warning: Installed '{candidate_name}' successfully, but 'import {import_name}' still failed.")
