@@ -116,7 +116,7 @@ git config --global alias.s "^!git status -vb --show-stash --ahead-behind && git
 git config --global alias.sta "^!git status -sb -uall --show-stash --ahead-behind && git diff --staged --stat && git diff --stat"
 git config --global alias.staged "!git status -sb && echo ---  && git status -b && echo --- && git diff --staged --stat && echo --- && git diff --staged"
 
-git config --global alias.a "^!f() { git config --list | grep \"^alias\\.\" | grep -Ei --color \"$1\"; }; f"
+git config --global alias.a "^!f() { aliases=$(git config --list | grep '^alias\.' | sed 's/alias\.//'); if [ -z \"$1\" ]; then echo \"$aliases\" | fzf --height 90%% --border --prompt 'Search aliases: ' --preview 'echo \"git {}\" && echo && git config --get alias.{}' --preview-window=right:60%%; else filtered=\"$aliases\"; for term in \"$@\"; do filtered=$(echo \"$filtered\" | grep -Ei \"$term\"); done; if [ $(echo \"$filtered\" | wc -l) -eq 1 ]; then selected=$(echo \"$filtered\"); echo \"Running: git $selected\"; git \"$selected\"; else echo \"$filtered\" | fzf --height 90%% --border --prompt 'Select alias: ' --preview 'echo \"git {}\" && echo && git config --get alias.{}' --preview-window=right:60%%; fi; fi; }; f"
 git config --global alias.ac "^!f() { git adi \"$@\"; git comit; git --no-pager unpushed; }; f"
 :: git config --global alias.acp "^!f() { if [ $# -eq 0 ]; then git adi; else git add \"$@\"; fi; git comit --ahead-behind && git unpushed && git push; }; f"
 git config --global alias.acp "^!f() { git ac \"$@\"; git push; }; f"
