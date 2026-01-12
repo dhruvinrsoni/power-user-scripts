@@ -2,6 +2,9 @@
 git --no-pager config --list --show-origin
 gh alias list
 
+REM # core.shell: Sets the default shell Git uses for executing external commands (like aliases or hooks) to Bash, enabling cross-platform script compatibility.
+git config --global core.shell "C:\Program Files\Git\bin\bash.exe"
+
 REM # credential.useHttpPath true: Makes Git use the full URL path (not just hostname) to identify credentials, useful for multiple accounts/repos on the same domain.
 git config --global credential.useHttpPath true
 
