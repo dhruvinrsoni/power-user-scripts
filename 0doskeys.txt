@@ -1,0 +1,51 @@
+cd=cd $* && dir "!CD!"
+a=type "%DOSFILE%" $*
+e=exit 0
+c=cls
+ls=dir "$*"
+pd=pushd "$*" && dir "!CD!"
+dirs=pushd
+po=popd "$*" && dir "!CD!"
+cdv=pushd "%$1%"\$2 && dir "!CD!"
+echov=echo !$1!
+.=explorer .
+ex=explorer !$1!
+..= cd /D "..\$1"
+...= cd /D "..\..\$1"
+unset=SET "$*="
+logs=start notepad "%LOGFILE%"
+log=@echo off && (for /f "usebackq" %i in (`powershell -noprofile Get-Date -Format "ddd"`) do (set day=%i)) && ( ( echo. && echo [%date% %time%]: $*) >> "%LOGFILE%" & ( echo [%date% %time%]: $*|clip.exe ) & @echo on & call get min ) && ( call get message [%date% %time%]: $* ) || ( echo avoid characters to avoid error: ^& ^\ ^< ^> ^^ ^| )
+normalprompt=SET MYPROMPT=$_$E[93m$E[41m$E[1m$S$D$S$E[93m$E[102m$E[1m$S$T$S$E[97m$E[44m$E[4m$S$P$+$S$E[0m$_$G$S && PROMPT !MYPROMPT!!GITPROMPT!
+updownprompt=SET "MYPROMPT=$_$E[93m$E[41m$E[1m$S$D$S$E[93m$E[102m$E[1m$S$T$S$E[0m$S$_$E[97m$E[44m$E[4m$P$+$G$E[0m" && PROMPT !MYPROMPT!!GITPROMPT!
+linuxprompt=SET "MYPROMPT=$_$E[93m$E[44m$E[1m$D$S$E[93m$E[102m$E[1m$S$T$S$E[97m$E[40m$M$_$E[97m$E[105m$E[4m$P$+$G$E[0m" && PROMPT !MYPROMPT!!GITPROMPT!
+sectionedprompt=SET "MYPROMPT=$_$E[93m$E[41m$E[1m$D$E[0m$S$E[93m$E[102m$E[1m$T$E[0m$S$E[97m$E[44m$E[4m$P$+$G$E[0m" && PROMPT !MYPROMPT!!GITPROMPT!
+brightprompt=SET "MYPROMPT=$_$E[1m$E[93m$E[104m$D$S$T$H$H$H$S$E[97m$E[40m$M$_$E[93m$E[102m$E[4m$P$+$G$E[0m" && PROMPT !MYPROMPT!!GITPROMPT!
+dullprompt=SET "MYPROMPT=$E[0m$E[44m$D$S$T$H$H$H$S$E[97m$E[40m$M$_$E[97m$E[4m$P$+$G$E[0m" && PROMPT !MYPROMPT!!GITPROMPT!
+
+winupdate=winget update --include-unknown $*
+winupgrade=winget upgrade --include-unknown $*
+
+outlookmanageaddins=start "https://outlook.office365.com/owa/?path=/options/manageapps" && start "https://outlook.office365.com/mail/inclientstore"
+
+gpg-check=for /f "usebackq" %i in (`git rev-parse HEAD`) DO (SET COMMMIT_SHA=%i) && echo "Verifying commit: %COMMMIT_SHA%" | gpg --batch --yes --clearsign
+
+restartwsl=wsl --shutdown && timeout /t 9 /nobreak && start wsl --cd %CD%
+grep=wsl grep $*
+awk=wsl awk $*
+sed=wsl sed $*
+
+tmpfile=type nul>"%TMPDR%\$*" && start "$*" "notepad++.exe" "%TMPDR%\$*" && explorer "%TMPDR%" && call get min
+npp=if [$*]==[] (start "" notepad++.exe -multiInst -nosession) else ( start "" notepad++.exe "$*" && call get min )
+
+mci=mvn clean install $* && call get message "build successful at %TIME% for %CD%" || call get message "build failed at %TIME% for %CD%"
+b=start "%CD%\$*" /D "%CD%\$*" /max cmd /c "call mvn clean install && call get max & PAUSE"
+dependencytree=mvn dependency:tree -Dincludes=$* --batch-mode -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn | find /V /I "[WARNING]"
+display-dependency-updates=mvn versions:display-dependency-updates
+build-info=mvn spring-boot:build-info $*
+buildinfohelp=mvn spring-boot:help -Ddetail=true -Dgoal=build-info $*
+testreproductability=mvn clean verify artifact:compare $*
+nrb=npm run build $*
+
+g=git $*
+
+kai=kubectl-ai $*
