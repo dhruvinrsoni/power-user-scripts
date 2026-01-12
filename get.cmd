@@ -8,7 +8,7 @@ SET COLUMNS=2
 SET CHOICES=
 SET DEBUG=0
 SET WIDTH=45
-FOR /F "tokens=1 delims=: skip=2" %%L IN ('FINDSTR /R "^:[a-zA-Z]" "%~f0"') DO (
+FOR /F "tokens=1 delims=: skip=3" %%L IN ('FINDSTR /R "^:[a-zA-Z]" "%~f0"') DO (
     SET CHOICES=!CHOICES! %%L
 )
 SET "CHOICES=!CHOICES:~1!"
@@ -188,6 +188,10 @@ SET "PADDED_LINE=!LINE!!SPACES!"
 SET "LINE=!PADDED_LINE:~0,%WIDTH%!"
 GOTO :EOF
 
+:exit0
+REM ECHO %CMDCMDLINE%|find "%~f0">nul && EXIT 0 || EXIT /B 0
+EXIT /B 0
+
 :apps
 start shell:AppsFolder
 goto exit0
@@ -204,6 +208,14 @@ GOTO exit0
 :hosts
 START notepad "%SYSTEMROOT%\System32\drivers\etc\hosts"
 ECHO "%SYSTEMROOT%\System32\drivers\etc\hosts"|clip
+GOTO exit0
+
+:intellij
+REM "C:\Program Files (x86)\JetBrains\IntelliJ IDEA Community Edition 2025.1.1.1\bin\idea64.exe"
+REM runas /user:Administrator "C:\Program Files (x86)\JetBrains\IntelliJ IDEA Community Edition 2025.1.1.1\bin\idea64.exe"
+REM Start-Process -FilePath "C:\Program Files (x86)\JetBrains\IntelliJ IDEA Community Edition 2025.1.1.1\bin\idea64.exe" -Verb RunAs
+REM START explorer "C:\Program Files (x86)\JetBrains\IntelliJ IDEA Community Edition 2025.1.1.1\bin"
+schtasks /Run /I /TN "intellij-as-admin"
 GOTO exit0
 
 :lock
@@ -224,12 +236,12 @@ GOTO exit0
 powershell -noprofile -window Minimized -command "" 2>nul
 GOTO exit0
 
-:outlooktemplate
-START explorer "%USERPROFILE%\AppData\Roaming\Microsoft\Templates"
+:npp
+START "" "%ROOT%\ProgramFiles\Notepad++\notepad++.exe" -noprofile -nosession -multiInst !ARGS!
 GOTO exit0
 
-:perfdevedge
-START "" "msedge.exe" !ARGS! --profile-directory="Profile 2"
+:outlooktemplate
+START explorer "%USERPROFILE%\AppData\Roaming\Microsoft\Templates"
 GOTO exit0
 
 :powertoy
@@ -238,6 +250,10 @@ GOTO exit0
 
 :signature
 explorer "%USERPROFILE%\AppData\Roaming\Microsoft\Signatures"
+GOTO exit0
+
+:singletabnpp
+START "" "%ROOT%\ProgramFiles\Notepad++\notepad++.exe" -nosession -notabbar -multiInst !ARGS!
 GOTO exit0
 
 :sleep
@@ -250,6 +266,7 @@ GOTO exit0
 
 :startmenu
 START explorer %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs
+GOTO exit0
 
 :startup
 START explorer %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
@@ -260,6 +277,10 @@ GOTO exit0
 
 :taskbar
 explorer "%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
+GOTO exit0
+
+:taskmgr
+powershell -Command "Start-Process taskmgr -Verb RunAs"
 GOTO exit0
 
 :temp
@@ -288,7 +309,3 @@ GOTO exit0
 FOR /f "usebackq tokens=* delims==" %%i in (`findstr /B /I "SET" "%DOSFILE%\..\doskeys.cmd"`) do (ECHO %%i)
 timeout /t -1 /nobreak
 GOTO exit0
-
-:exit0
-REM ECHO %CMDCMDLINE%|find "%~f0">nul && EXIT 0 || EXIT /B 0
-EXIT /B 0
