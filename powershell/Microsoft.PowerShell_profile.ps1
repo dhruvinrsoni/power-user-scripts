@@ -2,9 +2,10 @@ Write-Host "Running $($MyInvocation.MyCommand.Name) (Path: $($MyInvocation.MyCom
 #$host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.size(158,32766)
 try {
     $bufferwidth = $host.UI.RawUI.MaxPhysicalWindowSize.Width - 2
-    $host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.Size($bufferwidth, 32766)
+    $bufferheight = [Math]::Min(9999, $host.UI.RawUI.MaxPhysicalWindowSize.Height * 10)
+    $host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.Size($bufferwidth, $bufferheight)
 } catch {
-    Write-Host "Failed to set BufferSize: $_"
+    Write-Host "BufferSize error: $_" -ForegroundColor Red
 }
 Import-Module "$env:ROOT\github\dhruvinrsoni\power-user-scripts\powershell\Modules\SetConsoleFont.psm1"
 
@@ -38,8 +39,8 @@ function prompt {
 } #>
 
 function LoadPowerShellDoskeys{
-	Import-Module "$DOSFILE_BASE" -Force
-	Import-Module "$DOSFILE" -Force
+	Import-Module "$DOSFILE_BASE" -Force -DisableNameChecking -Global
+	Import-Module "$DOSFILE" -Force -DisableNameChecking -Global
 } Set-Alias pwshdoskeys LoadPowerShellDoskeys -Force
 
 function Reload-Profile {
