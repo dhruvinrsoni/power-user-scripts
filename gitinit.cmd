@@ -25,8 +25,8 @@ git config --global fetch.prune true
 git config --global gpg.program "%ROOT%\ProgramFiles(x86)\Gpg4win\bin\gpg.exe"
 
 git status -v 
-REM git restore --staged --worktree */.classpath */.factorypath */.settings/* */.project */*.log *.gitignore */package-lock.json antlrGrammar/src/main/java/com/reflexis/abtesting/grammar/*
-REM git config --global alias.sanitize "!git restore --staged --worktree */.classpath */.factorypath */.settings/* */.project */*.log *.gitignore */package-lock.json antlrGrammar/src/main/java/com/reflexis/abtesting/grammar/*"
+REM git restore --staged --worktree */.classpath */.factorypath */.settings/* */.project */*.log *.gitignore */package-lock.json
+REM git config --global alias.sanitize "!git restore --staged --worktree */.classpath */.factorypath */.settings/* */.project */*.log *.gitignore */package-lock.json
 
 @REM ssh-keygen -t rsa -C "email.id@mailhost.com"
 @REM eval `ssh-agent`
