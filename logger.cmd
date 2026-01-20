@@ -16,10 +16,11 @@
 :: Copyright (C) 2019 Dhruvin Soni. All rights reserved.
 @ECHO Off
 SET SEPARATE_WINDOW=1
+SET TIMEOUT_TIME_IN_SECONDS=1800
 SETLOCAL EnableDelayedExpansion
 CALL get max 
 PUSHD %SCRIPTS%
-IF NOT DEFINED LOGFILE (SET LOGFILE="%OneDrive%\WorkLogs\DhruvinWorkLog_%date%.LOG")
+IF NOT DEFINED LOGFILE (SET LOGFILE="%OneDrive%\WorkLogs\MyWorkLog_%date%.LOG")
 IF NOT [%1]==[] (
 	SET LOG_MSG=%*
 	GOTO checkLog
@@ -85,7 +86,9 @@ IF [%SEPARATE_WINDOW%]==[1] ( ECHO %CMDCMDLINE%|find "%~f0">nul && GOTO wait || 
 :wait
 CALL get min
 REM start "Timeout to the reminder to Log Your Work" /min cmd /c "call get min && timeout /t 1800 && msg %USERNAME% /W "Log Your Work""
-timeout /t 1800>nul && msg %USERNAME% /TIME:6 "Log Your Work "
+timeout /t %TIMEOUT_TIME_IN_SECONDS%
+powershell -noprofile -window Maximized -command "" 2>nul
+msg %USERNAME% /TIME:6 "Log Your Work "
 ECHO.
 GOTO resetLog
 
