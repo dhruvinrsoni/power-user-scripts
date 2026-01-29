@@ -25,25 +25,25 @@ if "!GITBRANCH!" == "" (
         set AHEAD=%%B
     )
 
-    set COMMIT_STATUS_STRING=
+    set "COMMIT_STATUS_STRING="
     REM Only build the string if the command was successful and values are non-zero.
     if defined AHEAD (
         if !AHEAD! GTR 0 (
             if !BEHIND! GTR 0 (
-                set COMMIT_STATUS_STRING= ^^^^!AHEAD! ^<!BEHIND!
+                set "COMMIT_STATUS_STRING=^^!AHEAD! ^<!BEHIND!"
             ) else (
-                set COMMIT_STATUS_STRING= ^^^^!AHEAD!
+                set "COMMIT_STATUS_STRING=^^!AHEAD!"
             )
         ) else (
             if !BEHIND! GTR 0 (
-                set COMMIT_STATUS_STRING= ^<!BEHIND!
+                set "COMMIT_STATUS_STRING=^<!BEHIND!"
             )
         )
     )
 
     if defined COMMIT_STATUS_STRING (
         REM Add color (magenta) and formatting. Note the space before the closing brace.
-        set COMMIT_STATUS_STRING= $E[1;35m{!COMMIT_STATUS_STRING! }$E[0m
+        set "COMMIT_STATUS_STRING=$E[1;35m{!COMMIT_STATUS_STRING!}$E[0m"
     )
     REM --- END: Custom code for commit status ---
 
@@ -61,19 +61,21 @@ if "!GITBRANCH!" == "" (
 
     set STATUS_STRING=
     REM Build the string, but only include non-zero counts.
-    if !ADDED! NEQ 0 set STATUS_STRING=!STATUS_STRING!+!ADDED!,
-    if !MODIFIED! NEQ 0 set STATUS_STRING=!STATUS_STRING!~!MODIFIED!,
-    if !DELETED! NEQ 0 set STATUS_STRING=!STATUS_STRING!-!DELETED!,
+    if !ADDED! NEQ 0 set "STATUS_STRING=!STATUS_STRING!+!ADDED! "
+    if !MODIFIED! NEQ 0 set "STATUS_STRING=!STATUS_STRING!~!MODIFIED! "
+    if !DELETED! NEQ 0 set "STATUS_STRING=!STATUS_STRING!-!DELETED! "
 
     REM If we added anything, format it and add color (yellow).
     if defined STATUS_STRING (
         REM Remove the trailing comma.
         set STATUS_STRING=!STATUS_STRING:~0,-1!
         REM Add brackets, color, and a leading space.
-        set STATUS_STRING= $E[1;33m[!STATUS_STRING!]$E[0m
+        set "STATUS_STRING= $E[1;33m[!STATUS_STRING!]"
+        set "STATUS_STRING= !STATUS_STRING!$E[0m"
     )
     REM --- END: Custom code ---
 
+    REM SET GITPROMPT=$E[1;34;1;32m$C!GITBRANCH!$F!COMMIT_STATUS_STRING!!STATUS_STRING!$E[0m$$$_$G$S
     SET GITPROMPT=$E[1;34;1;32m$C!GITBRANCH!$F!COMMIT_STATUS_STRING!!STATUS_STRING!$E[0m$$$_$G$S
     prompt !MYPROMPT_FORCUSTOMGIT!!GITPROMPT!
 )
