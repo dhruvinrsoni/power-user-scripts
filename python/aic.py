@@ -259,11 +259,11 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
         print("  [n] No - Abort the commit")
         print("  [e] Edit - Open editor to modify the message")
         if can_regenerate:
-            print("  [g] Generate - Create a new message")
+            print("  [r] Regenerate - Create a new message")
         print()
         
-        # Display 'g' option only if regeneration is allowed (token guardrail)
-        options_text = "(y/n/e/g)" if can_regenerate else "(y/n/e)"
+        # Display 'r' option only if regeneration is allowed (token guardrail)
+        options_text = "(y/n/e/r)" if can_regenerate else "(y/n/e)"
         print(f"Enter your choice {options_text}: ", end='', flush=True)
         
         key_press = msvcrt.getch()
@@ -281,7 +281,7 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
                 temp_file_name = temp_file.name
             commit_command.extend(['-e', '-F', temp_file_name])
             should_commit = True
-        elif can_regenerate and key_press.lower() == b'g':
+        elif can_regenerate and key_press.lower() == b'r':
             return "REGENERATE" # Signal to main loop
         else:
             print("\n❌ Aborted by user.")
