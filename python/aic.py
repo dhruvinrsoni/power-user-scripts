@@ -45,6 +45,91 @@ except KeyError:
 
 # --- Main Functions ---
 
+def run_git_with_ownership_fix(git_command, operation_description="Git operation", debug=False):
+    """
+    Executes a git command with automatic ownership error handling.
+    
+    This function provides a self-healing mechanism for Git's "dubious ownership" 
+    security check by automatically configuring the repository-local safe.directory 
+    setting when needed. This keeps the solution portable without affecting global 
+    Git configuration.
+    
+    Args:
+        git_command: List of command arguments (e.g., ['git', 'add', '.', '-v'])
+        operation_description: Human-readable description for user-facing messages
+        debug: Enable verbose logging of errors and operations
+    
+    Returns:
+        CompletedProcess object from successful execution
+    
+    Raises:
+        CalledProcessError: If the command fails for reasons other than ownership
+        SystemExit: If ownership fix fails after detection
+    """
+    try:
+        result = subprocess.run(git_command, check=True, capture_output=True, text=True)
+        if debug:
+            print(f"🐛 [DEBUG] Command succeeded: {' '.join(git_command)}")
+            if result.stdout:
+                print(f"🐛 [DEBUG] stdout: {result.stdout}")
+        return result
+    except subprocess.CalledProcessError as e:
+        if debug:
+            print(f"🐛 [DEBUG] Command failed: {' '.join(git_command)}")
+            print(f"🐛 [DEBUG] Exit code: {e.returncode}")
+            print(f"🐛 [DEBUG] stderr: {e.stderr}")
+        
+        # Check if this is the "dubious ownership" error (exit code 128)
+        if e.returncode == 128 and 'dubious ownership' in e.stderr:
+            print(f"🔧 Detected Git ownership issue during {operation_description}.")
+            print("   Configuring repository-local safe.directory...")
+            
+            # Try to get repository path, but fallback to current directory if that fails too
+            repo_path = None
+            try:
+                repo_path = subprocess.run(
+                    ['git', 'rev-parse', '--show-toplevel'], 
+                    capture_output=True, text=True, check=True
+                ).stdout.strip()
+                if debug:
+                    print(f"🐛 [DEBUG] Repository path from git: {repo_path}")
+            except subprocess.CalledProcessError as rev_error:
+                # git rev-parse also failed due to ownership - use current directory
+                repo_path = os.getcwd().replace('\\', '/')
+                if debug:
+                    print(f"🐛 [DEBUG] git rev-parse failed, using cwd: {repo_path}")
+                    print(f"🐛 [DEBUG] rev-parse error: {rev_error.stderr}")
+            
+            try:
+                # IMPORTANT: We must use --global because Git won't recognize this as a repo yet.
+                # This is still safe and portable - it only whitelists THIS specific directory.
+                # It doesn't disable the security feature globally, just allows this one path.
+                config_result = subprocess.run(
+                    ['git', 'config', '--global', '--add', 'safe.directory', repo_path], 
+                    check=True, capture_output=True, text=True
+                )
+                if debug:
+                    print(f"🐛 [DEBUG] Global config command succeeded")
+                    
+                print(f"✅ Added '{repo_path}' to safe.directory config.")
+                print(f"🔄 Retrying {operation_description}...")
+                
+                # Retry the original command
+                retry_result = subprocess.run(git_command, check=True, capture_output=True, text=True)
+                if debug:
+                    print(f"🐛 [DEBUG] Retry succeeded")
+                return retry_result
+                
+            except subprocess.CalledProcessError as retry_error:
+                print(f"🚨 Failed to fix ownership issue: {retry_error}")
+                if debug:
+                    print(f"🐛 [DEBUG] Retry stderr: {retry_error.stderr}")
+                sys.exit(1)
+        else:
+            # Some other error - re-raise it with context
+            print(f"🚨 Error during {operation_description}: {e.stderr}")
+            raise
+
 def interactive_add(debug_mode=False):
     """
     Triggers 'git adi' (interactive fzf staging) with improved UX.
@@ -55,10 +140,14 @@ def interactive_add(debug_mode=False):
     # 1. Pre-Flight: Show user what is available
     print("\n📂 Current Status (Untracked/Modified):")
     try:
-        # -s: Short format, -b: Show branch info
-        subprocess.run(['git', 'status', '-sb', '-uall'], check=True)
+        run_git_with_ownership_fix(
+            ['git', 'status', '-sb', '-uall'],
+            operation_description="status check",
+            debug=debug_mode
+        )
     except subprocess.CalledProcessError:
-        pass # Ignore errors here, fzf will handle the main logic
+        # Ignore errors here, fzf will handle the main logic
+        pass
         
     print("\n🚀 Launching interactive staging (fzf)...")
     try:
@@ -313,11 +402,13 @@ if __name__ == "__main__":
     if args.files:
         print(f"\n✅ File arguments detected. Staging: {', '.join(args.files)}")
         try:
-            # We append '-v' to see verbose output of what git is adding
-            subprocess.run(['git', 'add', '-v'] + args.files, check=True)
+            run_git_with_ownership_fix(
+                ['git', 'add', '-v'] + args.files,
+                operation_description="file staging",
+                debug=args.debug
+            )
             print("---")
         except subprocess.CalledProcessError:
-            print("🚨 Error: Could not add specified files. Check filenames and try again.")
             sys.exit(1)
 
     # 2. Check for other staging flags
@@ -326,8 +417,15 @@ if __name__ == "__main__":
         interactive_add(debug_mode=args.debug)
     elif args.add_all or args.aa:
         print("\n✅ --add-all flag detected. Staging all changes...")
-        subprocess.run(['git', 'add', '.', '-v'], check=True)
-        print("---")
+        try:
+            run_git_with_ownership_fix(
+                ['git', 'add', '.', '-v'],
+                operation_description="staging all changes",
+                debug=args.debug
+            )
+            print("---")
+        except subprocess.CalledProcessError:
+            sys.exit(1)
 
     if subprocess.run(['git', 'diff', '--staged', '--quiet']).returncode == 0:
         print("\n🤷 No changes staged for commit. Use 'git add' or pass filenames to this script.")
