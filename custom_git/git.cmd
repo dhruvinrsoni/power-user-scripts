@@ -59,7 +59,7 @@ if "!GITBRANCH!" == "" (
     REM Count deleted (' D') in the working directory.
     for /f %%C in ('git.exe status --porcelain ^| findstr /c:" D" ^| find /c /v ""') do set DELETED=%%C
 
-    set STATUS_STRING=
+    set "STATUS_STRING="
     REM Build the string, but only include non-zero counts.
     if !ADDED! NEQ 0 set "STATUS_STRING=!STATUS_STRING!+!ADDED! "
     if !MODIFIED! NEQ 0 set "STATUS_STRING=!STATUS_STRING!~!MODIFIED! "
@@ -70,13 +70,13 @@ if "!GITBRANCH!" == "" (
         REM Remove the trailing comma.
         set STATUS_STRING=!STATUS_STRING:~0,-1!
         REM Add brackets, color, and a leading space.
-        set "STATUS_STRING= $E[1;33m[!STATUS_STRING!]"
-        set "STATUS_STRING= !STATUS_STRING!$E[0m"
+        set "STATUS_STRING=$E[1;33m[!STATUS_STRING!]"
+        set "STATUS_STRING=!STATUS_STRING!$E[0m"
     )
     REM --- END: Custom code ---
 
     REM SET GITPROMPT=$E[1;34;1;32m$C!GITBRANCH!$F!COMMIT_STATUS_STRING!!STATUS_STRING!$E[0m$$$_$G$S
-    SET GITPROMPT=$E[1;34;1;32m$C!GITBRANCH!$F!COMMIT_STATUS_STRING!!STATUS_STRING!$E[0m$$$_$G$S
+    SET "GITPROMPT=$E[1;34;1;32m $C!GITBRANCH!$F !COMMIT_STATUS_STRING! !STATUS_STRING! $E[0m$$$_$G$S"
     prompt !MYPROMPT_FORCUSTOMGIT!!GITPROMPT!
 )
 
