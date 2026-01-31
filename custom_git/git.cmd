@@ -7,7 +7,7 @@ IF NOT "%*"=="" (
 	git.exe %*
 )
 
-set GITBRANCH=
+set "GITBRANCH="
 for /f "tokens=2" %%I in ('git.exe branch 2^> NUL ^| findstr /b "* "') do set GITBRANCH=%%I
 
 SET MYPROMPT_FORCUSTOMGIT=!MYPROMPT:~0,-6!
@@ -16,6 +16,8 @@ REM echo MYPROMPT_FORCUSTOMGIT=!MYPROMPT_FORCUSTOMGIT!
 if "!GITBRANCH!" == "" (
     prompt !MYPROMPT! 
 ) else (
+    set "GITBRANCH= $C!GITBRANCH!$F"
+
     REM --- START: Custom code for commit (ahead/behind) status ---
     set AHEAD=
     set BEHIND=
@@ -44,6 +46,7 @@ if "!GITBRANCH!" == "" (
     if defined COMMIT_STATUS_STRING (
         REM Add color (magenta) and formatting. Note the space before the closing brace.
         set "COMMIT_STATUS_STRING=$E[1;35m{!COMMIT_STATUS_STRING!}$E[0m"
+        set "COMMIT_STATUS_STRING= !COMMIT_STATUS_STRING!"
     )
     REM --- END: Custom code for commit status ---
 
@@ -72,11 +75,12 @@ if "!GITBRANCH!" == "" (
         REM Add brackets, color, and a leading space.
         set "STATUS_STRING=$E[1;33m[!STATUS_STRING!]"
         set "STATUS_STRING=!STATUS_STRING!$E[0m"
+        set "STATUS_STRING= !STATUS_STRING!"
     )
     REM --- END: Custom code ---
 
-    REM SET GITPROMPT=$E[1;34;1;32m$C!GITBRANCH!$F!COMMIT_STATUS_STRING!!STATUS_STRING!$E[0m$$$_$G$S
-    SET "GITPROMPT=$E[1;34;1;32m $C!GITBRANCH!$F !COMMIT_STATUS_STRING! !STATUS_STRING! $E[0m$$$_$G$S"
+    REM SET GITPROMPT=$E[1;34;1;32m!GITBRANCH!!COMMIT_STATUS_STRING!!STATUS_STRING!$E[0m$$$_$G$S
+    SET "GITPROMPT=$E[1;34;1;32m!GITBRANCH!!COMMIT_STATUS_STRING!!STATUS_STRING! $E[0m$$$_$G$S"
     prompt !MYPROMPT_FORCUSTOMGIT!!GITPROMPT!
 )
 
