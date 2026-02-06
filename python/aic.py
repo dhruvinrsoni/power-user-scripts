@@ -49,6 +49,61 @@ except KeyError:
 
 # --- Main Functions ---
 
+def get_available_models():
+    """Fetches list of available models from Gemini API."""
+    url = "https://generativelanguage.googleapis.com/v1beta/models"
+    headers = { 'Content-Type': 'application/json', 'X-goog-api-key': API_KEY }
+    
+    try:
+        response = requests.get(url, headers=headers, verify=False, timeout=15)
+        response.raise_for_status()
+        models_data = response.json().get('models', [])
+        
+        # Filter for models that support generateContent and are not strictly embeddings/tuned
+        generation_models = [
+            m for m in models_data 
+            if 'generateContent' in m.get('supportedGenerationMethods', [])
+            and 'models/' in m['name'] 
+            and not any(x in m['name'] for x in ['embedding', 'aqa', 'text-moderation'])
+        ]
+        return generation_models
+    except Exception as e:
+        print(f"\n🚨 Error fetching models: {e}")
+        return []
+
+def select_custom_model():
+    """Interactively allows user to select a Gemini model."""
+    print("🔍 Fetching available models for your API key...")
+    models = get_available_models()
+    
+    if not models:
+        print("⚠️ Could not fetch models or no generation models found.")
+        print("   Falling back to default: gemini-2.0-flash")
+        return "gemini-2.0-flash"
+    
+    print("\n--- 🤖 Available Gemini Models ---")
+    for idx, model in enumerate(models, 1):
+        # Strip 'models/' prefix for display
+        model_id = model['name'].replace('models/', '')
+        display_name = model.get('displayName', 'No name')
+        print(f"  [{idx:2}] {model_id:<25} | {display_name}")
+    
+    while True:
+        try:
+            choice = input(f"\nSelect a model (1-{len(models)}) or press Enter for default [gemini-2.0-flash]: ").strip()
+            if not choice:
+                return "gemini-2.0-flash"
+            
+            idx = int(choice) - 1
+            if 0 <= idx < len(models):
+                selected = models[idx]['name'].replace('models/', '')
+                print(f"✅ Model set to: {selected}")
+                return selected
+            else:
+                print(f"❌ Invalid selection. Please enter 1-{len(models)}.")
+        except ValueError:
+            print("❌ Please enter a number.")
+
 def run_git_with_ownership_fix(git_command, operation_description="Git operation", debug=False):
     """
     Executes a git command with automatic ownership error handling.
@@ -139,28 +194,28 @@ def interactive_add(debug_mode=False):
     Triggers 'git adi' (interactive fzf staging) with improved UX.
     Shows status before and summary after.
     """
-    print("\n✅ --interactive-add flag detected.")
+    print("\n✅ --interactive-add flag detected."), model_name="gemini-2.0-flash"):
+    """Sends prompt to Gemini API."""
+    print(f"✨ Asking {model_name} to generate the commit message...")
     
-    # 1. Pre-Flight: Show user what is available
-    print("\n📂 Current Status (Untracked/Modified):")
-    try:
-        run_git_with_ownership_fix(
-            ['git', 'status', '-sb', '-uall'],
-            operation_description="status check",
-            debug=debug_mode
-        )
-    except subprocess.CalledProcessError:
-        # Ignore errors here, fzf will handle the main logic
-        pass
-        
-    print("\n🚀 Launching interactive staging (fzf)...")
-    try:
-        # Run the user's custom alias. 
-        subprocess.run(['git', 'adi'], capture_output=True, text=True, encoding='utf-8')
-        
-        # 2. Post-Flight: Check if anything happened
-        result = subprocess.run(['git', 'diff', '--staged', '--quiet'])
-        
+    # --- 🧠 Architected Prompt ---
+    # We remove the word "text" from the end instructions to prevent hallucination.
+    # We use a strict "Role > Context > Constraint" structure.
+    strict_prompt = (
+        "You are an expert developer writing a semantic git commit message.\n"
+        "Analyze the following git context and generate the message.\n"
+        "--- START GIT CONTEXT ---\n"
+        f"{prompt}\n"
+        "--- END GIT CONTEXT ---\n"
+        "Instructions:\n"
+        "1. Follow conventional commit format (type: subject).\n"
+        "2. OUTPUT ONLY the raw commit message.\n"
+        "3. Do NOT add any markdown formatting (like ```).\n"
+        "4. Do NOT add any introductory words (like 'Here is the message' or 'text').\n"
+        "5. Start your response DIRECTLY with the commit type (e.g., feat:, fix:, docs:)."
+    )
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}
         if result.returncode == 0:
             print("\n🤷 No files were staged. Aborting commit process.")
             sys.exit(0)
@@ -239,8 +294,28 @@ def generate_commit_message(prompt, include_signature=True):
         else:
             print("\n🚨 API Error: No content candidates found.")
             sys.exit(1)
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 429:
+            print("\n🚨 Rate Limit Exceeded (429 Too Many Requests)")
+            print("   You've hit the Gemini API rate limit. This can happen due to:")
+            print("   • Too many requests in a short time period")
+            print("   • Exceeding your API quota")
+            print("   • Using a free tier API key with low limits")
+            print("\n💡 Solutions:")
+            print("   1. Wait a few minutes before trying again")
+            print("   2. Check your Google AI Studio quota at: https://aistudio.google.com/app/apikey")
+            print("   3. Consider upgrading to a paid plan for higher limits")
+            print("   4. Space out your commit generations")
+            sys.exit(1)
+        else:
+            print(f"\n🚨 HTTP Error {e.response.status_code}: {e.response.text}")
+            sys.exit(1)
+    except requests.exceptions.RequestException as e:
+        print(f"\n🚨 Network error occurred: {e}")
+        print("   Check your internet connection and try again.")
+        sys.exit(1)
     except Exception as e:
-        print(f"\n🚨 An error occurred with the Gemini API: {e}")
+        print(f"\n🚨 An unexpected error occurred with the Gemini API: {e}")
         sys.exit(1)
 
 def make_git_commit(message, dry_run=False, review=False, push=False, add_all=False, can_regenerate=False):
@@ -386,6 +461,7 @@ if __name__ == "__main__":
         (['-d', '-n', '--dry-run'], {'action': 'store_true', 'help': "Print message without committing."}),
         (['-f', '--fill-placeholders'], {'action': 'store_true', 'help': "Prompt to fill placeholders in the cinfo prompt for additional context."}),
         (['-i', '--interactive-add'], {'action': 'store_true', 'help': "Interactively stage files using 'git adi' (fzf)."}),
+        (['-m', '--model'], {'action': 'store_true', 'help': "Interactively select a custom Gemini model from your available list."}),
         (['-p', '--push'], {'action': 'store_true', 'help': "Push after a successful commit."}),
         (['-r', '--review'], {'action': 'store_true', 'help': "Review message before committing [y/n/e/g]."}),
         (['-v', '--debug'], {'action': 'store_true', 'help': "Enable verbose logging for dependency manager."}),
@@ -434,6 +510,11 @@ if __name__ == "__main__":
     if subprocess.run(['git', 'diff', '--staged', '--quiet']).returncode == 0:
         print("\n🤷 No changes staged for commit. Use 'git add' or pass filenames to this script.")
         sys.exit(0)
+    # --- MODEL SELECTION ---
+    target_model = "gemini-2.0-flash"
+    if args.model:
+        target_model = select_custom_model()
+    
     
     prompt = get_prompt_from_git("cinfo")
     
@@ -475,7 +556,7 @@ if __name__ == "__main__":
                     prompt += f"\n{ph} {val}"
     
     # --- RETRY LOGIC (Max 2 Retries = 3 total generations) ---
-    MAX_RETRIES = 2
+    MAX_RETRIES = 2, model_name=target_model
     attempts_done = 0
     
     while True:
