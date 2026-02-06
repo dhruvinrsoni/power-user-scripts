@@ -40,8 +40,12 @@ warnings.simplefilter('ignore', InsecureRequestWarning)
 try:
     API_KEY = os.environ["GOOGLE_API_KEY"]
 except KeyError:
-    print("\n🚨 Error: GOOGLE_API_KEY environment variable not set.")
-    sys.exit(1)
+    try:
+        API_KEY = os.environ["GEMINI_API_KEY"]
+    except KeyError:
+        print("\n🚨 Error: Neither GOOGLE_API_KEY nor GEMINI_API_KEY environment variable is set.")
+        print("   Please set GOOGLE_API_KEY (preferred) or GEMINI_API_KEY in your environment.")
+        sys.exit(1)
 
 # --- Main Functions ---
 
