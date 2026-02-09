@@ -194,28 +194,28 @@ def interactive_add(debug_mode=False):
     Triggers 'git adi' (interactive fzf staging) with improved UX.
     Shows status before and summary after.
     """
-    print("\n✅ --interactive-add flag detected."), model_name="gemini-2.0-flash"):
-    """Sends prompt to Gemini API."""
-    print(f"✨ Asking {model_name} to generate the commit message...")
+    print("\n✅ --interactive-add flag detected.")
     
-    # --- 🧠 Architected Prompt ---
-    # We remove the word "text" from the end instructions to prevent hallucination.
-    # We use a strict "Role > Context > Constraint" structure.
-    strict_prompt = (
-        "You are an expert developer writing a semantic git commit message.\n"
-        "Analyze the following git context and generate the message.\n"
-        "--- START GIT CONTEXT ---\n"
-        f"{prompt}\n"
-        "--- END GIT CONTEXT ---\n"
-        "Instructions:\n"
-        "1. Follow conventional commit format (type: subject).\n"
-        "2. OUTPUT ONLY the raw commit message.\n"
-        "3. Do NOT add any markdown formatting (like ```).\n"
-        "4. Do NOT add any introductory words (like 'Here is the message' or 'text').\n"
-        "5. Start your response DIRECTLY with the commit type (e.g., feat:, fix:, docs:)."
-    )
-
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}
+    # 1. Pre-Flight: Show user what is available
+    print("\n📂 Current Status (Untracked/Modified):")
+    try:
+        run_git_with_ownership_fix(
+            ['git', 'status', '-sb', '-uall'],
+            operation_description="status check",
+            debug=debug_mode
+        )
+    except subprocess.CalledProcessError:
+        # Ignore errors here, fzf will handle the main logic
+        pass
+        
+    print("\n🚀 Launching interactive staging (fzf)...")
+    try:
+        # Run the user's custom alias. 
+        subprocess.run(['git', 'adi'], capture_output=True, text=True, encoding='utf-8')
+        
+        # 2. Post-Flight: Check if anything happened
+        result = subprocess.run(['git', 'diff', '--staged', '--quiet'])
+        
         if result.returncode == 0:
             print("\n🤷 No files were staged. Aborting commit process.")
             sys.exit(0)
@@ -249,9 +249,9 @@ def get_prompt_from_git(alias_name):
         print(f"\n🚨 Error running 'git {alias_name}': {e.stderr}")
         sys.exit(1)
 
-def generate_commit_message(prompt, include_signature=True):
+def generate_commit_message(prompt, include_signature=True, model_name="gemini-2.0-flash"):
     """Sends prompt to Gemini API."""
-    print("✨ Asking Gemini to generate the commit message...")
+    print(f"✨ Asking {model_name} to generate the commit message...")
     
     # --- 🧠 Architected Prompt ---
     # We remove the word "text" from the end instructions to prevent hallucination.
@@ -270,7 +270,7 @@ def generate_commit_message(prompt, include_signature=True):
         "5. Start your response DIRECTLY with the commit type (e.g., feat:, fix:, docs:)."
     )
 
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
     headers = { 'Content-Type': 'application/json', 'X-goog-api-key': API_KEY }
     data = {"contents": [{"parts": [{"text": strict_prompt}]}]}
     
@@ -556,13 +556,13 @@ if __name__ == "__main__":
                     prompt += f"\n{ph} {val}"
     
     # --- RETRY LOGIC (Max 2 Retries = 3 total generations) ---
-    MAX_RETRIES = 2, model_name=target_model
+    MAX_RETRIES = 2
     attempts_done = 0
     
     while True:
         # Pass the watermark flag directly.
         # Signature is added only if --watermark is specified.
-        commit_message = generate_commit_message(prompt, include_signature=args.watermark)
+        commit_message = generate_commit_message(prompt, include_signature=args.watermark, model_name=target_model)
         
         # Determine if we allow regeneration (only if we haven't hit the cap)
         allow_regen = (attempts_done < MAX_RETRIES)
