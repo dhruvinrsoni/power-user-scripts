@@ -131,6 +131,7 @@ git config --global alias.aliases "^!f() { aliases=$(git config --list | grep '^
 git config --global alias.ac "^!f() { git adi \"$@\"; git comit; git --no-pager unpushed; }; f"
 :: git config --global alias.acp "^!f() { if [ $# -eq 0 ]; then git adi; else git add \"$@\"; fi; git comit --ahead-behind && git unpushed && git push; }; f"
 git config --global alias.acp "^!f() { git ac \"$@\"; git push; }; f"
+git config --global alias.acq "^!f() { if [ $# -gt 0 ]; then git commit -a -m \"$*\"; else git commit -a; fi; git --no-pager unpushed; }; f"
 :: git config --global alias.adi "^!f() { git add -- $(git status --short | awk '{print $2}' | fzf --cycle -m) $@; git status -vb --show-stash --ahead-behind; echo; git --no-pager diff --staged --stat; }; f"
 git config --global alias.adi "^!f() { if [ $# -eq 0 ]; then git add -- $(git status --porcelain -uall | awk '{sub(/^[ MADRCU?]{2} /, \"\"); print}' | fzf --cycle -m --height 90%% --layout=reverse --border --prompt 'Select files to stage: ' | sed 's/\\ /\\\\ /g') $@; else git add \"$@\"; fi; git status -vb --show-stash --ahead-behind; echo; git --no-pager diff --staged --stat; }; f"
 git config --global alias.aic "^!f() { python '%ROOT%/github/dhruvinrsoni/power-user-scripts/python/aic.py' "$@"; }; f"
