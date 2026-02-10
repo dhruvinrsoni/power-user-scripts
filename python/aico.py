@@ -15,7 +15,7 @@ except ImportError:
     sys.exit(1)
 
 # 2. Declare needs - OpenAI SDK
-dependency_manager.require(["openai"]) 
+dependency_manager.require(["openai", "httpx"]) 
 
 # ------------------------------
 
@@ -27,7 +27,12 @@ import subprocess
 import warnings
 import msvcrt  # For single-character input on Windows
 import tempfile # For securely creating temporary files
+import httpx
 from openai import OpenAI, OpenAIError, APIError, RateLimitError
+
+# --- Configuration: Suppress SSL Warnings ---
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- Configuration: API Key ---
 try:
@@ -38,8 +43,10 @@ except KeyError:
     print("   Get your API key from: https://platform.openai.com/api-keys")
     sys.exit(1)
 
-# Initialize OpenAI client
-client = OpenAI(api_key=API_KEY)
+# Initialize OpenAI client with SSL verification disabled
+# This fixes certificate verification issues on Windows
+http_client = httpx.Client(verify=False)
+client = OpenAI(api_key=API_KEY, http_client=http_client)
 
 # --- Main Functions ---
 
@@ -70,8 +77,8 @@ def select_custom_model():
     
     if not models:
         print("⚠️ Could not fetch models or no generation models found.")
-        print("   Falling back to default: gpt-4o")
-        return "gpt-4o"
+        print("   Falling back to default: gpt-5")
+        return "gpt-5"
     
     print("\n--- 🤖 Available OpenAI Models ---")
     for idx, model in enumerate(models, 1):
@@ -84,8 +91,8 @@ def select_custom_model():
             choice = input(f"\nSelect model [1-{len(models)}] or press Enter for default (gpt-4o): ").strip()
             
             if not choice:
-                print("✅ Using default: gpt-4o")
-                return "gpt-4o"
+                print("✅ Using default: gpt-5")
+                return "gpt-5"
             
             choice_idx = int(choice) - 1
             if 0 <= choice_idx < len(models):
@@ -97,8 +104,8 @@ def select_custom_model():
         except ValueError:
             print("❌ Invalid input. Please enter a number.")
         except KeyboardInterrupt:
-            print("\n\n⚠️ Selection cancelled. Using default: gpt-4o")
-            return "gpt-4o"
+            print("\n\n⚠️ Selection cancelled. Using default: gpt-5")
+            return "gpt-5"
 
 def run_git_with_ownership_fix(git_command, operation_description="Git operation", debug=False):
     """
@@ -248,7 +255,7 @@ def get_prompt_from_git(alias_name):
         print(f"\n🚨 Error running 'git {alias_name}': {e.stderr}")
         sys.exit(1)
 
-def generate_commit_message(prompt, include_signature=True, model_name="gpt-4o"):
+def generate_commit_message(prompt, include_signature=True, model_name="gpt-5"):
     """Sends prompt to OpenAI API using Responses API."""
     print(f"✨ Asking {model_name} to generate the commit message...")
     
@@ -408,27 +415,27 @@ if __name__ == "__main__":
 |-------------------------------------------------------------------------------------------------------------------------------|
 | Command       | Use Case                                 | User Flow Visualization                                             |
 |---------------|------------------------------------------|---------------------------------------------------------------------|
-| git aico      | Quick Commit (files already staged)      | ✨ AI Generates ➔ ✅ Commit                                         |
-| git aico file | Stage specific file(s) & Commit          | ➕ git add file ➔ ✨ AI Generates ➔ ✅ Commit                      |
-| git aico -d   | Dry Run (see message only)               | ✨ AI Generates ➔ 🧪 Show Message                                   |
-| git aico -r   | Review & Commit (approve AI message)     | ✨ AI Generates ➔ 🔎 Review                                         |
-|               |                                          | (y➔✅ Commit / e➔📝 Edit / g➔🔄 Regen / n➔❌ Abort)                |
-| git aico -i   | Interactive Staging & Commit             | ➕ Select Files (fzf) ➔ ✨ AI Generates ➔ ✅ Commit                 |
-| git aico -a   | Add & Commit (stage and commit)          | ➕ Add All ➔ ✨ AI Generates ➔ ✅ Commit                            |
-| git aico -p   | Commit & Push (commit staged, then push) | ✨ AI Generates ➔ ✅ Commit ➔ 🚀 Push                               |
+| git aico      | Quick Commit (files already staged)      | AI Generates > Commit                                               |
+| git aico file | Stage specific file(s) & Commit          | git add file > AI Generates > Commit                                |
+| git aico -d   | Dry Run (see message only)               | AI Generates > Show Message                                         |
+| git aico -r   | Review & Commit (approve AI message)     | AI Generates > Review                                               |
+|               |                                          | (y>Commit / e>Edit / r>Regen / n>Abort)                            |
+| git aico -i   | Interactive Staging & Commit             | Select Files (fzf) > AI Generates > Commit                          |
+| git aico -a   | Add & Commit (stage and commit)          | Add All > AI Generates > Commit                                     |
+| git aico -p   | Commit & Push (commit staged, then push) | AI Generates > Commit > Push                                        |
 |---------------|------------------------------------------|---------------------------------------------------------------------|
-| git aico -ar  | Add & Review (stage all, then approve)   | ➕ Add All ➔ ✨ AI... ➔ 🔎 Review                                   |
-|               |                                          | (y➔✅ Commit / e➔📝 Edit / g➔🔄 Regen / n➔🧹 Unstage)              |
-| git aico -ir  | Interactively Stage, then Review         | ➕ Select Files (fzf) ➔ ✨ AI... ➔ 🔎 Review                        |
-|               |                                          | (y➔✅ Commit / e➔📝 Edit / g➔🔄 Regen / n➔❌ Abort)                 |
-| git aico -ap  | The "One-Shot" (add, commit, push)       | ➕ Add All ➔ ✨ AI... ➔ ✅ Commit ➔ 🚀 Push                         |
-| git aico -ad  | Safe Preview (see msg for all changes)   | ➕ Add All ➔ ✨ AI... ➔ 🧪 Show ➔ 🧹 Unstage                        |
-| git aico -rp  | Review & Push (approve msg, then push)   | ✨ AI... ➔ 🔎 Review                                                |
-|               |                                          | (y➔✅ Commit ➔ 🚀 Push / e➔📝 Edit / g➔🔄 Regen / n➔❌ Abort)       |
+| git aico -ar  | Add & Review (stage all, then approve)   | Add All > AI... > Review                                            |
+|               |                                          | (y>Commit / e>Edit / r>Regen / n>Unstage)                          |
+| git aico -ir  | Interactively Stage, then Review         | Select Files (fzf) > AI... > Review                                 |
+|               |                                          | (y>Commit / e>Edit / r>Regen / n>Abort)                            |
+| git aico -ap  | The "One-Shot" (add, commit, push)       | Add All > AI... > Commit > Push                                     |
+| git aico -ad  | Safe Preview (see msg for all changes)   | Add All > AI... > Show > Unstage                                    |
+| git aico -rp  | Review & Push (approve msg, then push)   | AI... > Review                                                      |
+|               |                                          | (y>Commit > Push / e>Edit / r>Regen / n>Abort)                     |
 |---------------|------------------------------------------|---------------------------------------------------------------------|
-| git aico -irp | Ultimate Control Workflow                | ➕ Select Files (fzf) ➔ ✨ AI... ➔ 🔎 Review ➔ ✅ Commit ➔ 🚀 Push |
-| git aico -arp | The Ultimate Workflow                    | ➕ Add All ➔ ✨ AI... ➔ 🔎 Review                                   |
-|               |                                          | (y➔✅ Commit ➔ 🚀 Push / e➔📝 Edit / g➔🔄 Regen / n➔🧹 Unstage)     |
+| git aico -irp | Ultimate Control Workflow                | Select Files (fzf) > AI... > Review > Commit > Push                 |
+| git aico -arp | The Ultimate Workflow                    | Add All > AI... > Review                                            |
+|               |                                          | (y>Commit > Push / e>Edit / r>Regen / n>Unstage)                   |
 |-------------------------------------------------------------------------------------------------------------------------------|
     """
     
@@ -464,7 +471,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # --- Model Selection ---
-    target_model = "gpt-4o"  # Default model
+    target_model = "gpt-5"  # Default model
     if args.model:
         target_model = select_custom_model()
         print(f"🎯 Using model: {target_model}\n")
