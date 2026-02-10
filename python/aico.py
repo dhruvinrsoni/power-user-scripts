@@ -107,6 +107,40 @@ def select_custom_model():
             print("\n\n⚠️ Selection cancelled. Using default: gpt-5")
             return "gpt-5"
 
+def choose_low_cost_model():
+    """Choose a low-cost, fast model from available models.
+
+    Heuristic: prefer models with 'mini' or 'fast' in the id, then prefer '4o' variants,
+    avoid 'pro' and explicit '5' family if possible for cost reasons. Falls back to 'gpt-5'.
+    """
+    try:
+        models = get_available_models()
+        ids = [m.id for m in models]
+
+        # Prefer mini/fast variants
+        for kw in ('mini', 'fast'):
+            for m in ids:
+                lid = m.lower()
+                if kw in lid and 'pro' not in lid and '5' not in lid:
+                    return m
+
+        # Prefer 4o variants next (non-pro)
+        for m in ids:
+            lid = m.lower()
+            if '4o' in lid and 'pro' not in lid:
+                return m
+
+        # As a last attempt prefer any non-pro model without '5' in the name
+        for m in ids:
+            lid = m.lower()
+            if 'pro' not in lid and '5' not in lid:
+                return m
+
+    except Exception:
+        pass
+
+    return 'gpt-5'
+
 def run_git_with_ownership_fix(git_command, operation_description="Git operation", debug=False):
     """
     Executes a git command with automatic ownership error handling.
@@ -471,7 +505,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # --- Model Selection ---
-    target_model = "gpt-5"  # Default model
+    target_model = choose_low_cost_model()  # Default: prefer a low-cost, fast model
     if args.model:
         target_model = select_custom_model()
         print(f"🎯 Using model: {target_model}\n")
