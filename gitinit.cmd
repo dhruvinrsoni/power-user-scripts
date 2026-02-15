@@ -132,6 +132,7 @@ git config --global alias.ac "^!f() { git adi \"$@\"; git comit; git --no-pager 
 :: git config --global alias.acp "^!f() { if [ $# -eq 0 ]; then git adi; else git add \"$@\"; fi; git comit --ahead-behind && git unpushed && git push; }; f"
 REM git config --global alias.acp "^!f() { if [ $# -gt 0 ]; then git commit -a -m \"$*\" && git push; else git adi && git comit && git push; fi; }; f"
 git config --global alias.acp "^!f() { git ac \"$@\"; git push; }; f"
+REM git config --global alias.acp "^!f() { if [ $# -eq 0 ]; then git adi && git comit && git push; else msg=\"$1\"; shift; if [ $# -eq 0 ]; then git commit -a -m \"$msg\" && git push; else if [ \"$1\" = \"--\" ]; then shift; fi; git add -- \"$@\" && git commit -m \"$msg\" && git push; fi; fi; }; f"
 git config --global alias.acq "^!f() { if [ $# -gt 0 ]; then git commit -a -m \"$*\"; else git commit -a; fi; git --no-pager unpushed; }; f"
 :: git config --global alias.adi "^!f() { git add -- $(git status --short | awk '{print $2}' | fzf --cycle -m) $@; git status -vb --show-stash --ahead-behind; echo; git --no-pager diff --staged --stat; }; f"
 git config --global alias.adi "^!f() { if [ $# -eq 0 ]; then git add -- $(git status --porcelain -uall | awk '{sub(/^[ MADRCU?]{2} /, \"\"); print}' | fzf --cycle -m --height 90%% --layout=reverse --border --prompt 'Select files to stage: ' | sed 's/\\ /\\\\ /g') $@; else git add \"$@\"; fi; git status -vb --show-stash --ahead-behind; echo; git --no-pager diff --staged --stat; }; f"
