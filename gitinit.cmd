@@ -201,6 +201,7 @@ git config --global alias.prco "^!f() { git fetch --all; branch=$(gh pr list --s
 :: git config --global alias.prune-gone "^!f() { git fetch --prune && git branch -vv | grep ': gone]' | awk '{print $1}' | xargs git branch -d; }; f"
 :: git config --global alias.prune-gone "^!f() { git fetch --prune && git branch -vv | grep ': gone]' | awk '{print $1}' | while read branch; do echo \"Delete branch $branch? [y/N]\"; read ans; if [ \"$ans\" = \"y\" ]; then git branch -d $branch; fi; done; }; f"
 :: git config --global alias.reapply "^!f() { git stash apply --index $1; }; f"
+git config --global alias.rebase-on "^!f() { target_branch=${1:-origin/main}; if \[ -z \"$(git status --porcelain)\" \]; then echo 'No local changes to save. Resetting to target...'; git reset --hard \"$target_branch\"; else echo 'Stashing local changes...'; git stash push -u -m \"rebase-on-stash: work from $(git rev-parse --abbrev-ref HEAD)\"; echo \"Resetting branch to '$target_branch'...\"; git reset --hard \"$target_branch\"; echo 'Re-applying local changes...'; git stash pop; fi; }; f"
 REM git config --global alias.recent-patch "^!f() { git log -p -n ${1:-5}; }; f"
 REM git config --global alias.redo "^!f() { git stash list --pretty=format:'%gd %s' | grep "undo-with-stash-push" | head -n 1 | awk '{print $1}' | xargs git stash apply $@; }; f"
 :: git config --global alias.remotediff "^!f() { git fetch origin && git log HEAD..origin/$(git rev-parse --abbrev-ref HEAD) --stat --patch; }; f"
