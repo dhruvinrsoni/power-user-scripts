@@ -37,8 +37,8 @@ REM git config --global alias.sanitize "!git restore --staged --worktree */.clas
 @REM git branch
 
 REM git config --global core.editor "code --new-window --wait"
-git config --global core.editor "code --new-window --wait --profile git-commit"
-@REM git config --global core.editor "'%ROOT%\ProgramFiles\Notepad++\notepad++.exe' -multiInst -notabbar -nosession -noPlugin"
+REM git config --global core.editor "code --new-window --wait --profile git-commit"
+git config --global core.editor "%ROOT%\ProgramFiles\Notepad++\notepad++.exe -multiInst -notabbar -nosession -noPlugin"
 git config --global merge.tool vscode
 git config --global mergetool.vscode.cmd "code --wait $MERGED"
 git config --global diff.tool vscode
@@ -129,7 +129,9 @@ REM git config --global alias.a "^!f() { git config --list | grep \"^alias\\.\" 
 git config --global alias.a "^!f() { if [ $# -eq 0 ]; then git config --list | grep '^alias\.' | sed 's/alias\.//' | head -30; else filtered=$(git config --list | grep '^alias\.' | sed 's/alias\.//'); for term in \"$@\"; do filtered=$(echo \"$filtered\" | grep -Ei \"$term\"); done; echo \"$filtered\" | grep -Ei --color=always \"$*\" | head -20; fi; }; f"
 git config --global alias.aliases "^!f() { aliases=$(git config --list | grep '^alias\.' | sed 's/alias\.//' | sort); if [ $# -eq 0 ]; then echo \"$aliases\" | fzf --ansi --height 90%% --layout=reverse --border --prompt 'Git Aliases: ' --preview 'printf \"Alias: %%s\\n\\n\" {} ; git config --get alias.{} | fold -w 80' --preview-window=right:50%%:wrap; else filtered=\"$aliases\"; for term in \"$@\"; do filtered=$(echo \"$filtered\" | grep -i \"$term\"); done; echo \"$filtered\" | fzf --ansi --height 90%% --layout=reverse --border --prompt 'Filtered Git Aliases: ' --preview 'printf \"Alias: %%s\\n\\n\" {} ; git config --get alias.{} | fold -w 80' --preview-window=right:50%%:wrap; fi; }; f"
 git config --global alias.ac "^!f() { git adi \"$@\"; git comit; git --no-pager unpushed; }; f"
-git config --global alias.acp "^!f() { if [ $# -eq 0 ]; then git adi && git comit && git push; else git add -A && git commit -m "$1" && git push; fi; }; f"
+REM git config --global alias.acp "^!f() { if [ $# -eq 0 ]; then git adi && git comit && git push; else git add -A && git commit -m "$1" && git push; fi; }; f"
+git config --global alias.acp "^!f() { if \[ $# -eq 0 \] || \[ \"$1\" = \"--\" \]; then if \[ \"$1\" = \"--\" \]; then shift; git add -- \"$@\"; else git adi; fi; if git diff --staged --quiet; then echo 'No changes staged to commit.'; return; fi; git comit && git push; else msg=\"$1\"; shift; if \[ $# -eq 0 \]; then git add -A; else if \[ \"$1\" = \"--\" \]; then shift; fi; git add -- \"$@\"; fi; git commit -m \"$msg\" && git push; fi; }; f"
+
 git config --global alias.acq "^!f() { if [ $# -gt 0 ]; then git commit -a -m "$*"; else git commit -a; fi; git --no-pager unpushed; }; f"
 :: git config --global alias.adi "^!f() { git add -- $(git status --short | awk '{print $2}' | fzf --cycle -m) $@; git status -vb --show-stash --ahead-behind; echo; git --no-pager diff --staged --stat; }; f"
 git config --global alias.adi "^!f() { if [ $# -eq 0 ]; then git add -- $(git status --porcelain -uall | awk '{sub(/^[ MADRCU?]{2} /, \"\"); print}' | fzf --cycle -m --height 90%% --layout=reverse --border --prompt 'Select files to stage: ' | sed 's/\\ /\\\\ /g') $@; else git add \"$@\"; fi; git status -vb --show-stash --ahead-behind; echo; git --no-pager diff --staged --stat; }; f"
