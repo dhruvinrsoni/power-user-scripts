@@ -389,40 +389,46 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
         # Display 'r' option only if regeneration is allowed (token guardrail)
         options_text = "(y/n/e/r)" if can_regenerate else "(y/n/e)"
         print(f"Enter your choice {options_text}: ", end='', flush=True)
-        
+
         key_press = msvcrt.getch()
-        decoded_key = key_press.decode('utf-8') # Decode for printing
-        print(decoded_key) # Echo the pressed key
-        
-        if decoded_key.lower() == 'y':
+        # Echo pressed key for visibility
+        try:
+            print(key_press.decode('utf-8'))
+        except Exception:
+            print(str(key_press))
+
+        # Align behavior with `aic.py`: operate on raw bytes and return "REGENERATE"
+        if key_press.lower() == b'y':
+            print("\n👍 Approved. Committing...")
+            commit_command.extend(['-m', message])
             should_commit = True
-        elif decoded_key.lower() == 'n':
-            print("\n❌ Commit aborted by user.")
-            if add_all:
-                print("🧹 Unstaging all files (since --add-all was used)...")
-                subprocess.run(['git', 'reset', 'HEAD'], check=False)
-            sys.exit(0)
-        elif decoded_key.lower() == 'e':
-            should_commit = True
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as temp_file:
+        elif key_press.lower() == b'e':
+            print("\n📝 Opening editor to edit the message...")
+            with tempfile.NamedTemporaryFile(mode='w+', delete=False, encoding='utf-8') as temp_file:
                 temp_file.write(message)
                 temp_file_name = temp_file.name
-            print(f"\n📝 Opening editor to modify commit message...")
-        elif decoded_key.lower() == 'r' and can_regenerate:
-            return 'regenerate'
+            commit_command.extend(['-e', '-F', temp_file_name])
+            should_commit = True
+        elif can_regenerate and key_press.lower() == b'r':
+            return "REGENERATE"
         else:
-            print(f"\n❌ Invalid choice '{decoded_key}'. Commit aborted.")
+            print("\n❌ Aborted by user.")
+            if add_all:
+                print("\n🧹 --add-all flag was used. Unstaging files to clean up...")
+                subprocess.run(['git', 'restore', '--staged', '.'], check=True)
+                print("✅ Cleanup complete.")
             sys.exit(0)
     else:
         should_commit = True
 
     if should_commit:
         try:
-            if temp_file_name:
+            # Avoid duplicating commit flags if they were already added in the review branch
+            if temp_file_name and not any(opt in commit_command for opt in ('-e', '-F', '--file')):
                 commit_command.extend(['--file', temp_file_name, '--edit'])
-            else:
-                commit_command.extend(['--message', message])
-            
+            elif not any(opt in commit_command for opt in ('-m', '--message', '-e', '-F', '--file')):
+                commit_command.extend(['-m', message])
+
             print("\n🚀 Executing commit...")
             result = subprocess.run(commit_command, check=True, text=True, encoding='utf-8')
             
@@ -433,7 +439,16 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
                     pass
             
             print("\n✅ Commit successful!")
-            
+            # Show the last commit details (parity with `aic.py` output)
+            try:
+                subprocess.run([
+                    'git', '--no-pager', 'log', '-1',
+                    '--pretty=format:%C(yellow)%h%Creset %s %C(green)(%ar) %C(bold blue)<%an>%Creset%n%B%n'
+                ], check=True)
+            except Exception:
+                # Non-fatal: if displaying the log fails, continue normally
+                pass
+
             if push:
                 print("\n📤 Pushing to remote...")
                 push_result = subprocess.run(['git', 'push', '--verbose', '--progress'], check=True, text=True, encoding='utf-8')
@@ -532,21 +547,59 @@ if __name__ == "__main__":
     
     # --- Add All Logic ---
     if args.add_all or args.aa:
-        print("📂 Staging all changes (git add .)...")
+        print("\n✅ --add-all flag detected. Staging all changes...")
         try:
             run_git_with_ownership_fix(
-                ['git', 'add', '.'],
-                operation_description="staging all files",
+                ['git', 'add', '.', '-v'],
+                operation_description="staging all changes",
                 debug=args.debug
             )
-            print("✅ All changes staged.\n")
+            print("---")
         except subprocess.CalledProcessError as e:
             print(f"\n🚨 Failed to stage changes: {e}")
             sys.exit(1)
     
     # --- Prompt Generation ---
-    alias_name = 'cinfoshort' if args.fill_placeholders else 'cinfocore'
+    # Use the unified 'cinfo' alias to get the same prompt as `aic.py` for parity.
+    alias_name = 'cinfo'
     prompt = get_prompt_from_git(alias_name)
+
+    # If user asked to fill placeholders, show placeholders and let them enter values,
+    # then append filled placeholders to the prompt (parity with `aic.py`).
+    if args.fill_placeholders:
+        print("\n📝 Placeholders for additional context:")
+        try:
+            result = subprocess.run(['git', 'commitplaceholders'], capture_output=True, text=True, check=True)
+            placeholders_output = result.stdout
+            print(placeholders_output.strip())
+            # Parse placeholders from output
+            lines = placeholders_output.split('\n')
+            placeholders = []
+            in_section = False
+            for line in lines:
+                if line.startswith('## Placeholders for Manual Input:'):
+                    in_section = True
+                    continue
+                if in_section and line.strip().endswith(':') and not line.startswith('##'):
+                    placeholders.append(line.strip())
+        except subprocess.CalledProcessError as e:
+            print(f"🚨 Error displaying placeholders: {e}")
+            placeholders = []
+
+        if placeholders:
+            # Prompt for each placeholder value
+            filled_values = {}
+            print("\nEnter values for each placeholder (press Enter to skip):")
+            for ph in placeholders:
+                value = input(f"{ph} ").strip()
+                if value:
+                    filled_values[ph] = value
+
+            # Append filled placeholders to the prompt
+            if filled_values:
+                prompt += "\n\n## Filled Placeholders:"
+                for ph, val in filled_values.items():
+                    prompt += f"\n{ph} {val}"
     
     if args.debug:
         print("\n🐛 [DEBUG] Generated Prompt Preview:")
