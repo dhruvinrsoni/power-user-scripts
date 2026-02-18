@@ -200,6 +200,10 @@ goto exit0
 START %SystemRoot%\system32\scrnsave.scr /s
 GOTO exit0
 
+:envvars
+rundll32.exe sysdm.cpl,EditEnvironmentVariables
+GOTO exit0
+
 :hibernate
 TIMEOUT /t 6
 rundll32.exe powrprof.dll,SetSuspendState 0,1,0
