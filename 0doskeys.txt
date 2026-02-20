@@ -44,7 +44,9 @@ display-dependency-updates=mvn versions:display-dependency-updates
 build-info=mvn spring-boot:build-info $*
 buildinfohelp=mvn spring-boot:help -Ddetail=true -Dgoal=build-info $*
 testreproductability=mvn clean verify artifact:compare $*
-nrb=npm run build $*
+nrb=npm run build$*
+nrd=npm run dev$*
+nrp=npm run proxy$*
 
 g=git $*
 
