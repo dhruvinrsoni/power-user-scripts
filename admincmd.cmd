@@ -63,12 +63,12 @@ IF "%1"=="this" (
 )
 
 IF "%1"=="checkadmin" (
-    net session >nul 2>&1
-    IF %ERRORLEVEL% EQU 0 (
-        ECHO [INFO] You are running as Administrator.
-    ) ELSE (
-        ECHO [INFO] You are NOT running as Administrator.
-    )
+    net session >nul 2>&1 && ( ECHO [INFO] You are running as Administrator. ) || ( ECHO [INFO] You are NOT running as Administrator. )
+    REM IF %ERRORLEVEL% EQU 0 (
+        REM ECHO [INFO] You are running as Administrator.
+    REM ) ELSE (
+        REM ECHO [INFO] You are NOT running as Administrator.
+    REM )
     EXIT /B
 )
 
@@ -81,7 +81,7 @@ IF NOT "%*"=="" (
 	ECHO. >> "%ADMIN_CMD_LOGS_FILE%"
 ) else (
 	:: just opening CMD AS ADMIN
-	ECHO Parameters passed are empty ^%^*: %*
+	ECHO Parameters passed are empty ^^^%^^^*: "%*"
 	ECHO @echo off ^&^& powershell -noprofile -window Maximized -command "" ^&^& @echo on > "%ADMIN_CMD_FILE%"
 	ECHO. >> "%ADMIN_CMD_LOGS_FILE%"
 	ECHO [%date% %time%]: @echo off ^&^& powershell -noprofile -window Maximized -command "" ^&^& @echo on >> "%ADMIN_CMD_LOGS_FILE%"
@@ -95,4 +95,4 @@ REM PAUSE
 :schedule
 schtasks /Run /I /TN "cmd-as-admin"
 
-type nul > "%ADMIN_CMD_FILE%"
+REM type nul > "%ADMIN_CMD_FILE%"
