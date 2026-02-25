@@ -17,7 +17,6 @@ desktop.ini
 
 # PowerShell artifacts
 *.psd1
-*.psm1
 *.ps1xml
 
 # Node (if ever added)
