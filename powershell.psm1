@@ -208,47 +208,56 @@ function envexts { > $executableExtensions = $env:PATHEXT -split ';'; ($env:Path
 
 <#
 .SYNOPSIS
-    Scans the user's PATH environment variable and creates symbolic links for all found executables in a single, consolidated directory.
+    Generates or executes commands to create symbolic links for all executables found in the system's PATH, consolidating them into a single directory.
 
 .DESCRIPTION
-    This function automates the process of managing a crowded PATH variable. It finds all unique executables (.exe, .cmd, etc.) in the directories listed in $env:Path, excluding common system directories. It then creates symbolic links for these executables in a specified target directory (default C:\tools).
+    This function provides a robust solution for managing a crowded PATH environment variable.
 
-    This allows you to replace many entries in your PATH with a single one, preventing you from hitting the 2,047 character limit.
+    DEFAULT BEHAVIOR (Preview Mode):
+    By default, this function performs a dry run. It scans the PATH, finds all unique executables, and prints the exact 'mklink' commands needed to create symbolic links for them in a target directory. This output can be inspected or redirected to a .bat file to be run later.
 
-    The function includes a -WhatIf switch for a safe preview and requires Administrator privileges to run.
+    EXECUTION MODE (-Execute switch):
+    When the -Execute switch is used, the function will make actual changes to the system. It requires Administrator privileges, creates the target directory if needed, and then executes the 'mklink' commands to create the symbolic links.
 
 .PARAMETER TargetPath
-    The directory where the symbolic links will be created. This folder will be created if it doesn't exist.
-    Defaults to 'C:\tools'.
+    The directory where the symbolic links will be created. Defaults to 'C:\tools'.
 
 .PARAMETER ExcludePaths
-    An array of full directory paths to exclude from scanning. This is used to prevent clutter from standard system utilities.
-    Defaults to common Windows and PowerShell directories.
+    An array of full directory paths to exclude from scanning. This prevents clutter from standard system utilities. Defaults to common Windows and PowerShell directories.
 
-.PARAMETER WhatIf
-    A switch parameter that shows what links would be created without actually creating them. Use this for a safe preview.
-
-.EXAMPLE
-    PS C:\> Sync-PathToTools -WhatIf
-
-    What if: Performing the operation "Create Symbolic Link" on target "C:\tools\git.exe -> C:\Program Files\Git\cmd\git.exe".
-    What if: Performing the operation "Create Symbolic Link" on target "C:\tools\node.exe -> C:\Program Files\nodejs\node.exe".
-    (This shows a preview of the links that would be created.)
+.PARAMETER Execute
+    A switch parameter that changes the function from a preview mode to an execution mode.
+    *** WARNING: This switch will make changes to your file system. You must run PowerShell as an Administrator to use it. ***
 
 .EXAMPLE
     PS C:\> Sync-PathToTools
 
+    # Preview of commands to be generated. Run with -Execute switch to perform these actions.
+    # To save this as a script, run: Sync-PathToTools > create_links.bat
+    mklink "C:\tools\git.exe" "C:\Program Files\Git\cmd\git.exe"
+    mklink "C:\tools\node.exe" "C:\Program Files\nodejs\node.exe"
+    ...
+    (This shows a preview of the links that would be created. No changes are made.)
+
+.EXAMPLE
+    PS C:\> Sync-PathToTools > create_my_links.bat
+    (This saves all the generated 'mklink' commands into a batch file that you can review and run later.)
+
+.EXAMPLE
+    PS C:\> Sync-PathToTools -Execute
+
     [INFO] Administrator privileges confirmed.
-    [INFO] Creating target directory at C:\tools...
-    [INFO] Creating link: C:\tools\git.exe -> C:\Program Files\Git\cmd\git.exe
-    (This will actually create the symbolic links. Run PowerShell as Administrator.)
+    [INFO] Creating link: git.exe
+    [INFO] Creating link: node.exe
+    ...
+    (This will actually create the symbolic links. Requires an elevated (Administrator) PowerShell session.)
 
 .NOTES
-    Author: Gemini Enterprise, based on collaboration with Dhruvin Soni.
-    Requires: PowerShell to be run as an Administrator to create symbolic links.
+    Author: Gemini Enterprise, refined with guidance from Dhruvin Soni.
+    The -Execute switch requires PowerShell to be run as an Administrator.
 #>
 function Sync-PathToTools {
-    [CmdletBinding(SupportsShouldProcess = $true)]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
         [string]$TargetPath = 'C:\tools',
@@ -257,76 +266,74 @@ function Sync-PathToTools {
         [string[]]$ExcludePaths = @(
             "$env:SystemRoot",
             "$env:SystemRoot\System32",
-            "$env:SystemRoot\System32\wbem",
+            "$env:SystemRoot\System32\Wbem",
             "$env:SystemRoot\System32\WindowsPowerShell\v1.0"
-        )
+        ),
+
+        [Parameter(Mandatory = $false)]
+        [switch]$Execute
     )
 
-    # --- Pre-flight Checks & Setup ---
+    # --- Core Logic to Find Executables (Used by both modes) ---
 
-    # 1. Administrator Check
-    $currentUser = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-    if (-not $currentUser.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        throw "This script requires Administrator privileges to create symbolic links. Please re-run from a terminal opened as Administrator."
-    }
-    Write-Host "[INFO] Administrator privileges confirmed." -ForegroundColor Green
-
-    # 2. Create Target Directory if it doesn't exist
-    if (-not (Test-Path -Path $TargetPath)) {
-        if ($PSCmdlet.ShouldProcess($TargetPath, "Create Directory")) {
-            Write-Host "[INFO] Creating target directory at $TargetPath..." -ForegroundColor Yellow
-            New-Item -Path $TargetPath -ItemType Directory | Out-Null
-        }
-    }
-
-    # 3. Dynamically add the TargetPath to the exclusion list to prevent self-scanning
     $allExcludedPaths = $ExcludePaths + $TargetPath
-
-    # --- Core Logic ---
-
-    # Get all unique, non-excluded paths from the $env:Path
     $scannablePaths = ($env:Path -split ';') | Where-Object { $_ -and -not [string]::IsNullOrWhiteSpace($_) } | Get-Unique | Where-Object {
         $currentPath = $_
         $isExcluded = $false
         foreach ($excluded in $allExcludedPaths) {
-            if ($currentPath -eq $excluded) {
+            # Use -replace to normalize path separators for a reliable comparison
+            if (($currentPath -replace '\\', '/') -eq ($excluded -replace '\\', '/')) {
                 $isExcluded = $true
                 break
             }
         }
         -not $isExcluded
     }
-
-    # Find all executables, group by name to handle duplicates, and select the first one found (mimicking PATH behavior)
     $executablesToLink = $scannablePaths | ForEach-Object {
         if (Test-Path $_) {
             Get-ChildItem -Path $_ -File -ErrorAction SilentlyContinue | Where-Object { ($env:PATHEXT -split ';') -contains $_.Extension }
         }
     } | Group-Object -Property Name | ForEach-Object { $_.Group[0] }
 
-    Write-Host "[INFO] Found $($executablesToLink.Count) unique executables to process." -ForegroundColor Cyan
+    # --- Mode Switching ---
 
-    # --- Execution Logic ---
+    if ($Execute.IsPresent) {
+        # --- EXECUTION MODE ---
+        $currentUser = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+        if (-not $currentUser.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            throw "Execution requires Administrator privileges. Please re-run with the -Execute switch in a terminal opened as Administrator."
+        }
+        Write-Host "[INFO] Administrator privileges confirmed. Starting execution..." -ForegroundColor Green
 
-    foreach ($exe in $executablesToLink) {
-        $linkName = Join-Path -Path $TargetPath -ChildPath $exe.Name
-        $targetName = $exe.FullName
-        $actionMessage = "Create Symbolic Link: $linkName -> $targetName"
+        if (-not (Test-Path -Path $TargetPath)) {
+            Write-Host "[INFO] Creating target directory at $TargetPath..." -ForegroundColor Yellow
+            New-Item -Path $TargetPath -ItemType Directory | Out-Null
+        }
 
-        if ($PSCmdlet.ShouldProcess($targetName, $actionMessage)) {
-            # Only create the link if it doesn't already exist.
+        foreach ($exe in $executablesToLink) {
+            $linkName = Join-Path -Path $TargetPath -ChildPath $exe.Name
+            $targetName = $exe.FullName
             if (-not (Test-Path -Path $linkName)) {
                 Write-Host "[INFO] Creating link: $($exe.Name)"
-                # We must use cmd /c for the 'mklink' internal command
                 cmd /c "mklink ""$linkName"" ""$targetName""" | Out-Null
-            }
-            else {
+            } else {
                 Write-Host "[INFO] Link for $($exe.Name) already exists. Skipping." -ForegroundColor Gray
             }
         }
-    }
+        Write-Host "[SUCCESS] Tool synchronization complete." -ForegroundColor Green
 
-    Write-Host "[SUCCESS] Tool synchronization complete." -ForegroundColor Green
+    } else {
+        # --- PREVIEW / SCRIPT GENERATION MODE (DEFAULT) ---
+        Write-Output "# Preview of commands to be generated. Run this function with the -Execute switch to perform these actions."
+        Write-Output "# To save this as a script, run: Sync-PathToTools > create_links.bat"
+        
+        foreach ($exe in $executablesToLink) {
+            $linkName = Join-Path -Path $TargetPath -ChildPath $exe.Name
+            $targetName = $exe.FullName
+            # Output the exact, executable command string
+            Write-Output "mklink ""$linkName"" ""$targetName"""
+        }
+    }
 }
 
 
