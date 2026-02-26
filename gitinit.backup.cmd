@@ -134,6 +134,8 @@ git config --global alias.acp "^!f() { if \[ $# -eq 0 \] || \[ \"$1\" = \"--\" \
 git config --global alias.acq "^!f() { if [ $# -gt 0 ]; then git commit -a -m "$*"; else git commit -a; fi; git --no-pager unpushed; }; f"
 :: git config --global alias.adi "^!f() { git add -- $(git status --short | awk '{print $2}' | fzf --cycle -m) $@; git status -vb --show-stash --ahead-behind; echo; git --no-pager diff --staged --stat; }; f"
 git config --global alias.adi "^!f() { if [ $# -eq 0 ]; then git add -- $(git status --porcelain -uall | awk '{sub(/^[ MADRCU?]{2} /, \"\"); print}' | fzf --cycle -m --height 90%% --layout=reverse --border --prompt 'Select files to stage: ' | sed 's/\\ /\\\\ /g') $@; else git add \"$@\"; fi; git status -vb --show-stash --ahead-behind; echo; git --no-pager diff --staged --stat; }; f"
+git config --global alias.aic  "^!f() { python '%ROOT%/github/dhruvinrsoni/power-user-scripts/python/aic.py'  "$@"; }; f"
+git config --global alias.aica "^!f() { python '%ROOT%/github/dhruvinrsoni/power-user-scripts/python/aica.py' "$@"; }; f"
 git config --global alias.aicg "^!f() { python '%ROOT%/github/dhruvinrsoni/power-user-scripts/python/aicg.py' "$@"; }; f"
 git config --global alias.aico "^!f() { python '%ROOT%/github/dhruvinrsoni/power-user-scripts/python/aico.py' "$@"; }; f"
 git config --global alias.aipr "^!f() { python '%ROOT%/github/dhruvinrsoni/power-user-scripts/python/aipr.py' "$@"; }; f"

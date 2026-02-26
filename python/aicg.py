@@ -1,40 +1,32 @@
+#!/usr/bin/env python3
+"""
+AI-powered Git commit message generator using Google Gemini.
+Generates conventional commit messages using Google's Gemini models.
+"""
+
 import sys
 import os
 import subprocess
 
 # --- 🛡️ Self-Healing Header ---
-# 1. Import your local manager
 try:
     import dependency_manager
 except ImportError:
-    # Fallback if the manager itself is missing (optional safety net)
     print("🚨 Critical: 'dependency_manager.py' is missing from this folder.")
     sys.exit(1)
 
-# 2. Declare needs. { "import_name": "pip_package_name" }
-# Option A: The Smart List (Use this for 99% of packages)
-# It assumes 'import requests' means 'pip install requests'
-# The manager automatically checks sys.argv for '--debug'
 dependency_manager.require(["requests"])
-
-# Option B: The Explicit Dict (Only use if names differ)
-# dependency_manager.require({
-#     "requests": "requests",
-#     "yaml": "PyYAML",        # Import yaml, install PyYAML
-#     "cv2": "opencv-python"   # Import cv2, install opencv-python
-# })
-# ------------------------------
 
 # --- 🚀 Normal Imports (Guaranteed to work now) ---
 import requests
 import warnings
 import argparse
 import msvcrt  # For single-character input on Windows
-import tempfile # For securely creating temporary files
+import tempfile  # For securely creating temporary files
 
-# --- Configuration: Suppress Security Warning ---
-from urllib3.exceptions import InsecureRequestWarning
-warnings.simplefilter('ignore', InsecureRequestWarning)
+# --- Configuration: Suppress SSL Warnings ---
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- Configuration: API Key ---
 try:
@@ -45,21 +37,24 @@ except KeyError:
     except KeyError:
         print("\n🚨 Error: Neither GOOGLE_API_KEY nor GEMINI_API_KEY environment variable is set.")
         print("   Please set GOOGLE_API_KEY (preferred) or GEMINI_API_KEY in your environment.")
+        print("   Get your API key from: https://aistudio.google.com/app/apikey")
         sys.exit(1)
+
+# --- Default model ---
+DEFAULT_MODEL = "gemini-2.0-flash"
 
 # --- Main Functions ---
 
 def get_available_models():
     """Fetches list of available models from Gemini API."""
     url = "https://generativelanguage.googleapis.com/v1beta/models"
-    headers = { 'Content-Type': 'application/json', 'X-goog-api-key': API_KEY }
+    headers = {'Content-Type': 'application/json', 'X-goog-api-key': API_KEY}
 
     try:
         response = requests.get(url, headers=headers, verify=False, timeout=15)
         response.raise_for_status()
         models_data = response.json().get('models', [])
 
-        # Filter for models that support generateContent and are not strictly embeddings/tuned
         generation_models = [
             m for m in models_data
             if 'generateContent' in m.get('supportedGenerationMethods', [])
@@ -78,31 +73,34 @@ def select_custom_model():
 
     if not models:
         print("⚠️ Could not fetch models or no generation models found.")
-        print("   Falling back to default: gemini-2.0-flash")
-        return "gemini-2.0-flash"
+        print(f"   Falling back to default: {DEFAULT_MODEL}")
+        return DEFAULT_MODEL
 
     print("\n--- 🤖 Available Gemini Models ---")
     for idx, model in enumerate(models, 1):
-        # Strip 'models/' prefix for display
         model_id = model['name'].replace('models/', '')
         display_name = model.get('displayName', 'No name')
-        print(f"  [{idx:2}] {model_id:<25} | {display_name}")
+        print(f"  [{idx:2}] {model_id:<35} | {display_name}")
 
     while True:
         try:
-            choice = input(f"\nSelect a model (1-{len(models)}) or press Enter for default [gemini-2.0-flash]: ").strip()
+            choice = input(f"\nSelect model [1-{len(models)}] or press Enter for default ({DEFAULT_MODEL}): ").strip()
             if not choice:
-                return "gemini-2.0-flash"
+                print(f"✅ Using default: {DEFAULT_MODEL}")
+                return DEFAULT_MODEL
 
             idx = int(choice) - 1
             if 0 <= idx < len(models):
                 selected = models[idx]['name'].replace('models/', '')
-                print(f"✅ Model set to: {selected}")
+                print(f"✅ Selected: {selected}")
                 return selected
             else:
-                print(f"❌ Invalid selection. Please enter 1-{len(models)}.")
+                print(f"❌ Please enter a number between 1 and {len(models)}.")
         except ValueError:
-            print("❌ Please enter a number.")
+            print("❌ Invalid input. Please enter a number.")
+        except KeyboardInterrupt:
+            print(f"\n\n⚠️ Selection cancelled. Using default: {DEFAULT_MODEL}")
+            return DEFAULT_MODEL
 
 def run_git_with_ownership_fix(git_command, operation_description="Git operation", debug=False):
     """
@@ -130,7 +128,7 @@ def run_git_with_ownership_fix(git_command, operation_description="Git operation
         if debug:
             print(f"🐛 [DEBUG] Command succeeded: {' '.join(git_command)}")
             if result.stdout:
-                print(f"🐛 [DEBUG] stdout: {result.stdout}")
+                print(f"🐛 [DEBUG] stdout: {result.stdout[:500]}")
         return result
     except subprocess.CalledProcessError as e:
         if debug:
@@ -138,42 +136,34 @@ def run_git_with_ownership_fix(git_command, operation_description="Git operation
             print(f"🐛 [DEBUG] Exit code: {e.returncode}")
             print(f"🐛 [DEBUG] stderr: {e.stderr}")
 
-        # Check if this is the "dubious ownership" error (exit code 128)
         if e.returncode == 128 and 'dubious ownership' in e.stderr:
             print(f"🔧 Detected Git ownership issue during {operation_description}.")
             print("   Configuring repository-local safe.directory...")
 
-            # Try to get repository path, but fallback to current directory if that fails too
-            repo_path = None
             try:
-                repo_path = subprocess.run(
+                repo_result = subprocess.run(
                     ['git', 'rev-parse', '--show-toplevel'],
                     capture_output=True, text=True, check=True
-                ).stdout.strip()
-                if debug:
-                    print(f"🐛 [DEBUG] Repository path from git: {repo_path}")
-            except subprocess.CalledProcessError as rev_error:
-                # git rev-parse also failed due to ownership - use current directory
-                repo_path = os.getcwd().replace('\\', '/')
-                if debug:
-                    print(f"🐛 [DEBUG] git rev-parse failed, using cwd: {repo_path}")
-                    print(f"🐛 [DEBUG] rev-parse error: {rev_error.stderr}")
+                )
+                repo_path = repo_result.stdout.strip()
+            except subprocess.CalledProcessError:
+                print("⚠️ Could not determine repository path. Using current directory.")
+                repo_path = os.getcwd()
 
             try:
-                # IMPORTANT: We must use --global because Git won't recognize this as a repo yet.
-                # This is still safe and portable - it only whitelists THIS specific directory.
-                # It doesn't disable the security feature globally, just allows this one path.
-                config_result = subprocess.run(
+                if debug:
+                    print(f"🐛 [DEBUG] Adding '{repo_path}' to safe.directory")
+
+                subprocess.run(
                     ['git', 'config', '--global', '--add', 'safe.directory', repo_path],
                     check=True, capture_output=True, text=True
                 )
                 if debug:
-                    print(f"🐛 [DEBUG] Global config command succeeded")
+                    print(f"🐛 [DEBUG] Config add succeeded")
 
                 print(f"✅ Added '{repo_path}' to safe.directory config.")
                 print(f"🔄 Retrying {operation_description}...")
 
-                # Retry the original command
                 retry_result = subprocess.run(git_command, check=True, capture_output=True, text=True)
                 if debug:
                     print(f"🐛 [DEBUG] Retry succeeded")
@@ -185,7 +175,6 @@ def run_git_with_ownership_fix(git_command, operation_description="Git operation
                     print(f"🐛 [DEBUG] Retry stderr: {retry_error.stderr}")
                 sys.exit(1)
         else:
-            # Some other error - re-raise it with context
             print(f"🚨 Error during {operation_description}: {e.stderr}")
             raise
 
@@ -196,7 +185,6 @@ def interactive_add(debug_mode=False):
     """
     print("\n✅ --interactive-add flag detected.")
 
-    # 1. Pre-Flight: Show user what is available
     print("\n📂 Current Status (Untracked/Modified):")
     try:
         run_git_with_ownership_fix(
@@ -205,26 +193,21 @@ def interactive_add(debug_mode=False):
             debug=debug_mode
         )
     except subprocess.CalledProcessError:
-        # Ignore errors here, fzf will handle the main logic
         pass
 
     print("\n🚀 Launching interactive staging (fzf)...")
     try:
-        # Run the user's custom alias.
         subprocess.run(['git', 'adi'], capture_output=True, text=True, encoding='utf-8')
 
-        # 2. Post-Flight: Check if anything happened
         result = subprocess.run(['git', 'diff', '--staged', '--quiet'])
 
         if result.returncode == 0:
             print("\n🤷 No files were staged. Aborting commit process.")
             sys.exit(0)
 
-        # 3. The "Receipt": Show what was staged
         print("\n✅ Staged Changes Summary:")
         subprocess.run(['git', 'diff', '--staged', '--stat'], check=True)
 
-        # 4. Debug Mode: Deep Inspection
         if debug_mode:
             print("\n🐛 [DEBUG] Full Staged Diff:")
             subprocess.run(['git', '--no-pager', 'diff', '--staged'], check=True)
@@ -246,16 +229,19 @@ def get_prompt_from_git(alias_name):
         print("---")
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
+        if "is not a git command" in e.stderr:
+            print(f"\n🚨 Error: 'git {alias_name}' is not recognized as a git command or alias.")
+            print(f"   Make sure the '{alias_name}' alias is configured in your git config.")
+            print(f"   You may need to run 'gitinit.cmd' to set up your git aliases.")
+            sys.exit(0)
+
         print(f"\n🚨 Error running 'git {alias_name}': {e.stderr}")
         sys.exit(1)
 
-def generate_commit_message(prompt, include_signature=True, model_name="gemini-2.0-flash"):
+def generate_commit_message(prompt, include_signature=True, model_name=DEFAULT_MODEL):
     """Sends prompt to Gemini API."""
     print(f"✨ Asking {model_name} to generate the commit message...")
 
-    # --- 🧠 Architected Prompt ---
-    # We remove the word "text" from the end instructions to prevent hallucination.
-    # We use a strict "Role > Context > Constraint" structure.
     strict_prompt = (
         "You are an expert developer writing a semantic git commit message.\n"
         "Analyze the following git context and generate the message.\n"
@@ -271,7 +257,7 @@ def generate_commit_message(prompt, include_signature=True, model_name="gemini-2
     )
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-    headers = { 'Content-Type': 'application/json', 'X-goog-api-key': API_KEY }
+    headers = {'Content-Type': 'application/json', 'X-goog-api-key': API_KEY}
     data = {"contents": [{"parts": [{"text": strict_prompt}]}]}
 
     try:
@@ -282,13 +268,12 @@ def generate_commit_message(prompt, include_signature=True, model_name="gemini-2
         if 'candidates' in json_response and json_response['candidates']:
             raw_text = json_response['candidates'][0]['content']['parts'][0]['text']
 
-            # 1. Clean Markdown & Artifacts
             clean_text = raw_text.strip().replace("```", "")
             if clean_text.lower().startswith("text"): clean_text = clean_text[4:].strip()
             if clean_text.lower().startswith("commit message:"): clean_text = clean_text[15:].strip()
 
             if include_signature:
-                clean_text += "\n--Generated by Google Gemini."
+                clean_text += "\n\n--Generated by Google Gemini."
 
             return clean_text
         else:
@@ -332,22 +317,22 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
     if review:
         print("\n🔎 --- REVIEW COMMIT MESSAGE --- 🔎\n" + message + "\n---------------------------------\n")
 
-        # Display clear options menu
         print("Choose an action:")
         print("  [y] Yes - Commit with this message")
         print("  [n] No - Abort the commit")
         print("  [e] Edit - Open editor to modify the message")
         if can_regenerate:
-            print("  [r] Regenerate - Create a new message")
+            print("  [r] Regenerate - Request a new AI-generated message (costs additional API token)")
         print()
 
-        # Display 'r' option only if regeneration is allowed (token guardrail)
         options_text = "(y/n/e/r)" if can_regenerate else "(y/n/e)"
         print(f"Enter your choice {options_text}: ", end='', flush=True)
 
         key_press = msvcrt.getch()
-        decoded_key = key_press.decode('utf-8') # Decode for printing
-        print(decoded_key)
+        try:
+            print(key_press.decode('utf-8'))
+        except Exception:
+            print(str(key_press))
 
         if key_press.lower() == b'y':
             print("\n👍 Approved. Committing...")
@@ -361,7 +346,7 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
             commit_command.extend(['-e', '-F', temp_file_name])
             should_commit = True
         elif can_regenerate and key_press.lower() == b'r':
-            return "REGENERATE" # Signal to main loop
+            return "REGENERATE"
         else:
             print("\n❌ Aborted by user.")
             if add_all:
@@ -370,29 +355,40 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
                 print("✅ Cleanup complete.")
             sys.exit(0)
     else:
-        commit_command.extend(['-m', message])
         should_commit = True
 
     if should_commit:
-        print("\n✅ Committing...\n")
         try:
-            subprocess.run(commit_command, check=True)
-            print("\n🎉 Commit successful!\n---")
-            # NOTE: We keep this simple log -1. The full unpushed log is handled by the alias if needed,
-            # or could be added here if you want it explicitly in the script logic.
-            subprocess.run(['git', '--no-pager', 'log', '-1', '--pretty=format:%C(yellow)%h%Creset %s %C(green)(%ar) %C(bold blue)<%an>%Creset%n%B%n'], check=True)
-            print("---")
+            if temp_file_name and not any(opt in commit_command for opt in ('-e', '-F', '--file')):
+                commit_command.extend(['--file', temp_file_name, '--edit'])
+            elif not any(opt in commit_command for opt in ('-m', '--message', '-e', '-F', '--file')):
+                commit_command.extend(['-m', message])
+
+            print("\n🚀 Executing commit...")
+            subprocess.run(commit_command, check=True, text=True, encoding='utf-8')
+
+            if temp_file_name:
+                try:
+                    os.unlink(temp_file_name)
+                except Exception:
+                    pass
+
+            print("\n✅ Commit successful!")
+            try:
+                subprocess.run([
+                    'git', '--no-pager', 'log', '-1',
+                    '--pretty=format:%C(yellow)%h%Creset %s %C(green)(%ar) %C(bold blue)<%an>%Creset%n%B%n'
+                ], check=True)
+            except Exception:
+                pass
 
             if push:
-                print("\n✅ --push flag detected. Pushing to remote...")
-                subprocess.run(['git', 'push'], check=True)
-                print("\n🚀 Push successful!\n")
-
-        except subprocess.CalledProcessError:
-            print("🚨 Error during git operation (or commit aborted in editor).")
-        finally:
-            if temp_file_name and os.path.exists(temp_file_name):
-                os.remove(temp_file_name)
+                print("\n📤 Pushing to remote...")
+                subprocess.run(['git', 'push', '--verbose', '--progress'], check=True, text=True, encoding='utf-8')
+                print("✅ Push successful!")
+        except subprocess.CalledProcessError as e:
+            print(f"\n🚨 Commit failed: {e}")
+            sys.exit(1)
 
 # --- Script Execution ---
 if __name__ == "__main__":
@@ -401,27 +397,27 @@ if __name__ == "__main__":
 |-------------------------------------------------------------------------------------------------------------------------------|
 | Command       | Use Case                                 | User Flow Visualization                                             |
 |---------------|------------------------------------------|---------------------------------------------------------------------|
-| git aicg      | Quick Commit (files already staged)      | ✨ AI Generates ➔ ✅ Commit                                         |
-| git aicg file | Stage specific file(s) & Commit          | ➕ git add file ➔ ✨ AI Generates ➔ ✅ Commit                      |
-| git aicg -d   | Dry Run (see message only)               | ✨ AI Generates ➔ 🧪 Show Message                                   |
-| git aicg -r   | Review & Commit (approve AI message)     | ✨ AI Generates ➔ 🔎 Review                                         |
-|               |                                          | (y➔✅ Commit / e➔📝 Edit / g➔🔄 Regen / n➔❌ Abort)                |
-| git aicg -i   | Interactive Staging & Commit             | ➕ Select Files (fzf) ➔ ✨ AI Generates ➔ ✅ Commit                 |
-| git aicg -a   | Add & Commit (stage and commit)          | ➕ Add All ➔ ✨ AI Generates ➔ ✅ Commit                            |
-| git aicg -p   | Commit & Push (commit staged, then push) | ✨ AI Generates ➔ ✅ Commit ➔ 🚀 Push                               |
+| git aicg      | Quick Commit (files already staged)      | AI Generates > Commit                                               |
+| git aicg file | Stage specific file(s) & Commit          | git add file > AI Generates > Commit                                |
+| git aicg -d   | Dry Run (see message only)               | AI Generates > Show Message                                         |
+| git aicg -r   | Review & Commit (approve AI message)     | AI Generates > Review                                               |
+|               |                                          | (y>Commit / e>Edit / r>Regen / n>Abort)                            |
+| git aicg -i   | Interactive Staging & Commit             | Select Files (fzf) > AI Generates > Commit                          |
+| git aicg -a   | Add & Commit (stage and commit)          | Add All > AI Generates > Commit                                     |
+| git aicg -p   | Commit & Push (commit staged, then push) | AI Generates > Commit > Push                                        |
 |---------------|------------------------------------------|---------------------------------------------------------------------|
-| git aicg -ar  | Add & Review (stage all, then approve)   | ➕ Add All ➔ ✨ AI... ➔ 🔎 Review                                   |
-|               |                                          | (y➔✅ Commit / e➔📝 Edit / g➔🔄 Regen / n➔🧹 Unstage)              |
-| git aicg -ir  | Interactively Stage, then Review         | ➕ Select Files (fzf) ➔ ✨ AI... ➔ 🔎 Review                        |
-|               |                                          | (y➔✅ Commit / e➔📝 Edit / g➔🔄 Regen / n➔❌ Abort)                 |
-| git aicg -ap  | The "One-Shot" (add, commit, push)       | ➕ Add All ➔ ✨ AI... ➔ ✅ Commit ➔ 🚀 Push                         |
-| git aicg -ad  | Safe Preview (see msg for all changes)   | ➕ Add All ➔ ✨ AI... ➔ 🧪 Show ➔ 🧹 Unstage                        |
-| git aicg -rp  | Review & Push (approve msg, then push)   | ✨ AI... ➔ 🔎 Review                                                |
-|               |                                          | (y➔✅ Commit ➔ 🚀 Push / e➔📝 Edit / g➔🔄 Regen / n➔❌ Abort)       |
+| git aicg -ar  | Add & Review (stage all, then approve)   | Add All > AI... > Review                                            |
+|               |                                          | (y>Commit / e>Edit / r>Regen / n>Unstage)                          |
+| git aicg -ir  | Interactively Stage, then Review         | Select Files (fzf) > AI... > Review                                 |
+|               |                                          | (y>Commit / e>Edit / r>Regen / n>Abort)                            |
+| git aicg -ap  | The "One-Shot" (add, commit, push)       | Add All > AI... > Commit > Push                                     |
+| git aicg -ad  | Safe Preview (see msg for all changes)   | Add All > AI... > Show > Unstage                                    |
+| git aicg -rp  | Review & Push (approve msg, then push)   | AI... > Review                                                      |
+|               |                                          | (y>Commit > Push / e>Edit / r>Regen / n>Abort)                     |
 |---------------|------------------------------------------|---------------------------------------------------------------------|
-| git aicg -irp | Ultimate Control Workflow                | ➕ Select Files (fzf) ➔ ✨ AI... ➔ 🔎 Review ➔ ✅ Commit ➔ 🚀 Push |
-| git aicg -arp | The Ultimate Workflow                    | ➕ Add All ➔ ✨ AI... ➔ 🔎 Review                                   |
-|               |                                          | (y➔✅ Commit ➔ 🚀 Push / e➔📝 Edit / g➔🔄 Regen / n➔🧹 Unstage)     |
+| git aicg -irp | Ultimate Control Workflow                | Select Files (fzf) > AI... > Review > Commit > Push                 |
+| git aicg -arp | The Ultimate Workflow                    | Add All > AI... > Review                                            |
+|               |                                          | (y>Commit > Push / e>Edit / r>Regen / n>Unstage)                   |
 |-------------------------------------------------------------------------------------------------------------------------------|
     """
 
@@ -431,10 +427,8 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter
     )
 
-    # --- CHANGED: Positional Arguments for Files ---
     parser.add_argument('files', metavar='FILES', nargs='*', help="Specific files to add/stage automatically.")
 
-    # Collect arguments to sort alphabetically by long option
     arg_specs = [
         (['-a', '--add-all'], {'action': 'store_true', 'help': "Stage all changes before committing (git add .)."}),
         (['-aa'], {'action': 'store_true', 'help': argparse.SUPPRESS}),
@@ -443,39 +437,46 @@ if __name__ == "__main__":
         (['-i', '--interactive-add'], {'action': 'store_true', 'help': "Interactively stage files using 'git adi' (fzf)."}),
         (['-m', '--model'], {'action': 'store_true', 'help': "Interactively select a custom Gemini model from your available list."}),
         (['-p', '--push'], {'action': 'store_true', 'help': "Push after a successful commit."}),
-        (['-r', '--review'], {'action': 'store_true', 'help': "Review message before committing [y/n/e/g]."}),
+        (['-r', '--review'], {'action': 'store_true', 'help': "Review message before committing [y/n/e/r]."}),
         (['-v', '--debug'], {'action': 'store_true', 'help': "Enable verbose logging for dependency manager."}),
         (['-w', '--watermark'], {'action': 'store_true', 'help': "Add 'Generated by Google Gemini' signature to commit message."})
-]
+    ]
 
-    # Sort by the first long option (starting with '--'), or first short if no long
     arg_specs.sort(key=lambda x: next((opt for opt in x[0] if opt.startswith('--')), x[0][0]))
 
-    # Add sorted arguments to parser
-    for args, kwargs in arg_specs:
-        parser.add_argument(*args, **kwargs)
+    for flags, kwargs in arg_specs:
+        parser.add_argument(*flags, **kwargs)
 
     args = parser.parse_args()
 
-    # --- NEW STAGING LOGIC ---
-    # 1. Check for specific files passed as arguments
-    if args.files:
-        print(f"\n✅ File arguments detected. Staging: {', '.join(args.files)}")
-        try:
-            run_git_with_ownership_fix(
-                ['git', 'add', '-v'] + args.files,
-                operation_description="file staging",
-                debug=args.debug
-            )
-            print("---")
-        except subprocess.CalledProcessError:
-            sys.exit(1)
+    # --- Model Selection ---
+    target_model = DEFAULT_MODEL
+    if args.model:
+        target_model = select_custom_model()
+        print(f"🎯 Using model: {target_model}\n")
 
-    # 2. Check for other staging flags
+    # --- Interactive Add Logic ---
     if args.interactive_add:
-        # Pass the debug flag to the function
         interactive_add(debug_mode=args.debug)
-    elif args.add_all or args.aa:
+
+    # --- File Staging Logic ---
+    if args.files:
+        print(f"📂 Staging specified files: {', '.join(args.files)}")
+        for file in args.files:
+            print(f"   ➕ Adding: {file}")
+            try:
+                run_git_with_ownership_fix(
+                    ['git', 'add', file],
+                    operation_description=f"staging {file}",
+                    debug=args.debug
+                )
+            except subprocess.CalledProcessError:
+                print(f"\n🚨 Failed to stage file: {file}")
+                sys.exit(1)
+        print("✅ File staging complete.\n")
+
+    # --- Add All Logic ---
+    if args.add_all or args.aa:
         print("\n✅ --add-all flag detected. Staging all changes...")
         try:
             run_git_with_ownership_fix(
@@ -484,29 +485,24 @@ if __name__ == "__main__":
                 debug=args.debug
             )
             print("---")
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            print(f"\n🚨 Failed to stage changes: {e}")
             sys.exit(1)
 
+    # --- Check staged changes ---
     if subprocess.run(['git', 'diff', '--staged', '--quiet']).returncode == 0:
         print("\n🤷 No changes staged for commit. Use 'git add' or pass filenames to this script.")
         sys.exit(0)
-    # --- MODEL SELECTION ---
-    target_model = "gemini-2.0-flash"
-    if args.model:
-        target_model = select_custom_model()
 
-
-    prompt = get_prompt_from_git("cinfo")
+    # --- Prompt Generation ---
+    prompt = get_prompt_from_git('cinfo')
 
     if args.fill_placeholders:
-        # Display placeholders for reference and parse them
         print("\n📝 Placeholders for additional context:")
         try:
             result = subprocess.run(['git', 'commitplaceholders'], capture_output=True, text=True, check=True)
             placeholders_output = result.stdout
             print(placeholders_output.strip())
-
-            # Parse placeholders from output
             lines = placeholders_output.split('\n')
             placeholders = []
             in_section = False
@@ -521,7 +517,6 @@ if __name__ == "__main__":
             placeholders = []
 
         if placeholders:
-            # Prompt for each placeholder value
             filled_values = {}
             print("\nEnter values for each placeholder (press Enter to skip):")
             for ph in placeholders:
@@ -529,23 +524,25 @@ if __name__ == "__main__":
                 if value:
                     filled_values[ph] = value
 
-            # Append filled placeholders to the prompt
             if filled_values:
                 prompt += "\n\n## Filled Placeholders:"
                 for ph, val in filled_values.items():
                     prompt += f"\n{ph} {val}"
 
-    # --- RETRY LOGIC (Max 2 Retries = 3 total generations) ---
+    if args.debug:
+        print("\n🐛 [DEBUG] Generated Prompt Preview:")
+        print(f"{prompt[:500]}...\n" if len(prompt) > 500 else f"{prompt}\n")
+
+    # --- Regeneration Loop ---
     MAX_RETRIES = 2
-    attempts_done = 0
+    attempt = 0
 
-    while True:
-        # Pass the watermark flag directly.
-        # Signature is added only if --watermark is specified.
-        commit_message = generate_commit_message(prompt, include_signature=args.watermark, model_name=target_model)
-
-        # Determine if we allow regeneration (only if we haven't hit the cap)
-        allow_regen = (attempts_done < MAX_RETRIES)
+    while attempt <= MAX_RETRIES:
+        commit_message = generate_commit_message(
+            prompt,
+            include_signature=args.watermark,
+            model_name=target_model
+        )
 
         result = make_git_commit(
             commit_message,
@@ -553,16 +550,27 @@ if __name__ == "__main__":
             review=args.review,
             push=args.push,
             add_all=(args.add_all or args.aa),
-            can_regenerate=allow_regen
+            can_regenerate=(attempt < MAX_RETRIES)
         )
 
         if result == "REGENERATE":
-            attempts_done += 1
-            print(f"\n🔄 Regenerating commit message... (Retry {attempts_done}/{MAX_RETRIES})")
-            continue
-
-        # If we got here, it means we committed, dry-run finished, or user aborted inside make_git_commit
-        break
+            attempt += 1
+            if attempt <= MAX_RETRIES:
+                print(f"\n🔄 Regeneration requested (attempt {attempt}/{MAX_RETRIES})...")
+            else:
+                print(f"\n⚠️ Maximum regeneration attempts ({MAX_RETRIES}) reached.")
+                print("   Using the last generated message.")
+                make_git_commit(
+                    commit_message,
+                    dry_run=args.dry_run,
+                    review=False,
+                    push=args.push,
+                    add_all=(args.add_all or args.aa),
+                    can_regenerate=False
+                )
+                break
+        else:
+            break
 
     if (args.add_all or args.aa) and args.dry_run:
         print("\n🧹 --add-all and --dry-run detected. Unstaging files to clean up...")

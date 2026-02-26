@@ -397,7 +397,6 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
         except Exception:
             print(str(key_press))
 
-        # Align behavior with `aic.py`: operate on raw bytes and return "REGENERATE"
         if key_press.lower() == b'y':
             print("\n👍 Approved. Committing...")
             commit_command.extend(['-m', message])
@@ -627,7 +626,7 @@ if __name__ == "__main__":
             can_regenerate=(attempt < MAX_RETRIES)
         )
         
-        if result == 'regenerate':
+        if result == "REGENERATE":
             attempt += 1
             if attempt <= MAX_RETRIES:
                 print(f"\n🔄 Regeneration requested (attempt {attempt}/{MAX_RETRIES})...")
