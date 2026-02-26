@@ -53,6 +53,13 @@ def find_provider():
     return None, None
 
 
+def mask_key(value, show=4):
+    """Return a masked version of a secret: first N + *** + last N chars."""
+    if not value or len(value) <= show * 2:
+        return '***'
+    return f"{value[:show]}{'*' * 8}{value[-show:]}"
+
+
 def print_status(msg):
     """Print to stderr so it doesn't pollute captured output in pipelines."""
     print(msg, file=sys.stderr, flush=True)
@@ -86,10 +93,13 @@ if __name__ == '__main__':
     # -----------------------------------------------------------------------
     debug_mode = '--debug' in sys.argv or '-v' in sys.argv
     if debug_mode:
-        print_status(f"🤖 [aic] Auto-selected: {provider['icon']} {provider['name']} (key: {key_var})")
-        print_status(f"🤖 [aic] Delegating to: {provider['script']}")
+        masked = mask_key(os.environ.get(key_var, ''))
+        print_status(f"🤖 [aic] Provider  : {provider['icon']} {provider['name']}")
+        print_status(f"🤖 [aic] Key var   : {key_var} = {masked}")
+        print_status(f"🤖 [aic] Script    : {script_path}")
+        print_status(f"🤖 [aic] Args      : {sys.argv[1:]}")
     else:
-        print_status(f"🤖 {provider['icon']} {provider['name']}")
+        print_status(f"🤖 via {provider['name']}")
 
     # -----------------------------------------------------------------------
     # 3. Hand off to the backend — inherit stdin/stdout/stderr so all
