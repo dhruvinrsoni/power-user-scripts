@@ -317,7 +317,7 @@ def get_prompt_from_git(alias_name):
         sys.exit(1)
 
 
-def generate_commit_message(prompt, include_signature=True, model_name=DEFAULT_MODEL, fallback_models=None):
+def generate_commit_message(prompt, include_signature=True, model_name=DEFAULT_MODEL, fallback_models=None, model_sizes=None):
     """
     Sends prompt to Ollama local API using the /api/chat endpoint.
 
@@ -330,6 +330,7 @@ def generate_commit_message(prompt, include_signature=True, model_name=DEFAULT_M
         model_name:       Primary model to use
         fallback_models:  Ordered list of model names to try if primary fails
                           (should be sorted small→large for RAM efficiency)
+        model_sizes:      Dict of {model_name: size_str} for display (e.g. "2.0 GB")
     """
     strict_instructions = (
         "You are an expert developer writing a semantic git commit message. "
@@ -356,9 +357,13 @@ def generate_commit_message(prompt, include_signature=True, model_name=DEFAULT_M
 
     for attempt_idx, current_model in enumerate(models_to_try):
         if attempt_idx > 0:
-            print(f"🔄 Trying next model: {current_model}")
+            size_str = (model_sizes or {}).get(current_model, "")
+            size_display = f" ({size_str})" if size_str else ""
+            print(f"🔄 Trying next model: {current_model}{size_display}")
 
-        print(f"✨ Asking {current_model} (Ollama local) to generate the commit message...")
+        size_str = (model_sizes or {}).get(current_model, "")
+        size_display = f" ({size_str})" if size_str else ""
+        print(f"✨ Asking {current_model}{size_display} (Ollama local) to generate the commit message...")
         print(f"   [ctx={OLLAMA_NUM_CTX} tokens | timeout={OLLAMA_TIMEOUT}s]")
 
         payload = {
@@ -573,8 +578,9 @@ if __name__ == "__main__":
         print("   Or any other model from: https://ollama.com/library")
         sys.exit(1)
 
-    # Extract flat name list for lookups
+    # Flat structures for quick lookups
     _available_names = [m["name"] for m in _available_at_startup]
+    _model_sizes     = {m["name"]: m["size_str"] for m in _available_at_startup}
 
     epilog_text = """
                       Usage Examples & Workflows
@@ -754,7 +760,8 @@ if __name__ == "__main__":
             prompt,
             include_signature=args.watermark,
             model_name=target_model,
-            fallback_models=_fallback_chain
+            fallback_models=_fallback_chain,
+            model_sizes=_model_sizes
         )
 
         result = make_git_commit(
