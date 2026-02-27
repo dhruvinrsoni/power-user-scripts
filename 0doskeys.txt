@@ -35,7 +35,7 @@ awk=wsl awk $*
 sed=wsl sed $*
 
 tmpfile=type nul>"%TMPDR%\$*" && start "$*" "notepad++.exe" "%TMPDR%\$*" && explorer "%TMPDR%" && call get min
-npp=if [$*]==[] (start "" notepad++.exe -multiInst -nosession) else ( start "" notepad++.exe "$*" && call get min )
+npp=if "$*"== (start "" notepad++.exe -multiInst -nosession) else ( start "" notepad++.exe "$*" && call get min )
 
 mci=mvn clean install $* && call get message "build successful at %TIME% for %CD%" || call get message "build failed at %TIME% for %CD%"
 b=start "%CD%\$*" /D "%CD%\$*" /max cmd /c "call mvn clean install && call get max & PAUSE"
