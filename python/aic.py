@@ -91,8 +91,21 @@ if __name__ == '__main__':
     # Detect and strip wrapper-only flags before building the forwarded args.
     # These flags are meaningful only to aic.py; backends must never see them.
     # -----------------------------------------------------------------------
-    cloud_mode = '--cloud' in sys.argv or '-c' in sys.argv
-    forward_args = [a for a in sys.argv[1:] if a not in ('--cloud', '-c')]
+    # Detect and strip -c/--cloud even when bundled with other flags (e.g. -cap → -ap).
+    cloud_mode = False
+    forward_args = []
+    for _arg in sys.argv[1:]:
+        if _arg in ('--cloud', '-c'):
+            # Standalone: -c  or  --cloud
+            cloud_mode = True
+        elif _arg.startswith('-') and not _arg.startswith('--') and 'c' in _arg[1:]:
+            # Bundled: -cap, -ac, -vc, etc. — strip the 'c' and keep the rest.
+            cloud_mode = True
+            _stripped = _arg.replace('c', '', 1)   # -cap → -ap, -ac → -a
+            if len(_stripped) > 1:                  # more than just a bare '-' remains
+                forward_args.append(_stripped)
+        else:
+            forward_args.append(_arg)
 
     # -----------------------------------------------------------------------
     # Priority 0: Ollama (local, free, always preferred when running)
