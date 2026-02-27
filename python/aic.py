@@ -12,6 +12,10 @@ This is a thin wrapper: it detects which provider is available, prints one
 line showing the chosen provider, then hands full control to the backend script.
 All CLI flags (-a, -d, -r, -i, -p, -f, -m, -v, -w, FILES...) are forwarded
 unchanged so every feature of the underlying script is available.
+
+Override flags (consumed by this wrapper, NOT forwarded to the backend):
+  -c, --cloud   Skip Ollama even when it is running; use best available cloud
+                provider instead (Anthropic → Gemini → OpenAI).
 """
 
 import os
@@ -84,11 +88,19 @@ if __name__ == '__main__':
     debug_mode = '--debug' in sys.argv or '-v' in sys.argv
 
     # -----------------------------------------------------------------------
+    # Detect and strip wrapper-only flags before building the forwarded args.
+    # These flags are meaningful only to aic.py; backends must never see them.
+    # -----------------------------------------------------------------------
+    cloud_mode = '--cloud' in sys.argv or '-c' in sys.argv
+    forward_args = [a for a in sys.argv[1:] if a not in ('--cloud', '-c')]
+
+    # -----------------------------------------------------------------------
     # Priority 0: Ollama (local, free, always preferred when running)
+    # Skipped when --cloud / -c is passed.
     # -----------------------------------------------------------------------
     ollama_base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 
-    if is_ollama_available(base_url=ollama_base_url):
+    if not cloud_mode and is_ollama_available(base_url=ollama_base_url):
         script_path = os.path.join(SCRIPT_DIR, 'aicl.py')
 
         if not os.path.isfile(script_path):
@@ -100,12 +112,12 @@ if __name__ == '__main__':
             print_status(f"🤖 [aic] Provider  : 🟣 Ollama (local)")
             print_status(f"🤖 [aic] Endpoint  : {ollama_base_url}")
             print_status(f"🤖 [aic] Script    : {script_path}")
-            print_status(f"🤖 [aic] Args      : {sys.argv[1:]}")
+            print_status(f"🤖 [aic] Args      : {forward_args}")
         else:
             print_status(f"🤖 via Ollama (local)")
 
         result = subprocess.run(
-            [sys.executable, script_path] + sys.argv[1:]
+            [sys.executable, script_path] + forward_args
         )
         sys.exit(result.returncode)
 
@@ -115,14 +127,18 @@ if __name__ == '__main__':
     provider, key_var = find_provider()
 
     if not provider:
-        print_status("\n🚨 No AI provider available.")
-        print_status("   Option 0 (free, local): start Ollama — no API key needed")
-        print_status("     • Run: ollama serve  (or launch the Ollama app)")
-        print_status("   Or set one of the following environment variables:")
+        print_status("\n🚨 No cloud AI provider available.")
+        if cloud_mode:
+            print_status("   --cloud mode is active (Ollama bypassed).")
+        else:
+            print_status("   Ollama is also not running.")
+            print_status("   Option 0 (free, local): start Ollama — no API key needed")
+            print_status("     • Run: ollama serve  (or launch the Ollama app)")
+        print_status("   Set one of the following environment variables:")
         print_status("   • ANTHROPIC_API_KEY  — Anthropic Claude")
         print_status("   • GOOGLE_API_KEY or GEMINI_API_KEY  — Google Gemini")
         print_status("   • OPENAI_API_KEY  — OpenAI")
-        print_status("\n   Priority: Ollama (local) > Anthropic > Google > OpenAI")
+        print_status("\n   Full priority: Ollama (local) > Anthropic > Google > OpenAI")
         sys.exit(1)
 
     script_path = os.path.join(SCRIPT_DIR, provider['script'])
@@ -141,15 +157,17 @@ if __name__ == '__main__':
         print_status(f"🤖 [aic] Provider  : {provider['icon']} {provider['name']}")
         print_status(f"🤖 [aic] Key var   : {key_var} = {masked}")
         print_status(f"🤖 [aic] Script    : {script_path}")
-        print_status(f"🤖 [aic] Args      : {sys.argv[1:]}")
+        print_status(f"🤖 [aic] Cloud mode: {cloud_mode}")
+        print_status(f"🤖 [aic] Args      : {forward_args}")
     else:
-        print_status(f"🤖 via {provider['name']}")
+        cloud_tag = " (--cloud)" if cloud_mode else ""
+        print_status(f"🤖 via {provider['name']}{cloud_tag}")
 
     # -----------------------------------------------------------------------
     # Hand off to the backend — inherit stdin/stdout/stderr so all
     # interactive features (msvcrt, fzf, editor) work transparently.
     # -----------------------------------------------------------------------
     result = subprocess.run(
-        [sys.executable, script_path] + sys.argv[1:]
+        [sys.executable, script_path] + forward_args
     )
     sys.exit(result.returncode)
