@@ -189,8 +189,8 @@ function parseIniFile {
 
 
 	
-$CloudDevOpsMode=0;
-$DevMode=1;
+$global:CloudDevOpsMode=0;
+$global:DevMode=1;
 # do {
 	# $msg = 'Engage and Patch the Cloud DevOps Kraken?' 
 	# $response = Read-Host -Prompt $msg
@@ -307,13 +307,13 @@ function resetprompt {
     Write-Host
     if ($userResponse -eq 'y') { 
         Write-Host -ForegroundColor Green -BackgroundColor Black "<===== [ Directive Confirmed: DevOps Mode ENGAGED. Awakened Kraken in Action! ] =====>"
-        $script:CloudDevOpsMode = 1 
+        $global:CloudDevOpsMode = 1 
     } elseif ($userResponse -eq 'n') { 
         Write-Host -ForegroundColor Red -BackgroundColor Black "===> [ Action Canceled: DevOps Mode INACTIVE. Kraken in Standby. ] <==="
-        $script:CloudDevOpsMode = 0 
+        $global:CloudDevOpsMode = 0 
     } else { 
         Write-Host -ForegroundColor Yellow -BackgroundColor Black "===> [ Unclear Command: DevOps Mode NOT ACTIVATED. Defaulting to Standby. ] <==="
-        $script:CloudDevOpsMode = 0 
+        $global:CloudDevOpsMode = 0 
     }
     Write-Host
 
@@ -322,13 +322,13 @@ function resetprompt {
     Write-Host
     if ($userResponse -eq 'y') { 
         Write-Host -ForegroundColor Green -BackgroundColor Black "<===== [ The Dragon roars! Revealing DevMode secrets... ] =====>"
-        $script:DevMode = 1 
+        $global:DevMode = 1 
     } elseif ($userResponse -eq 'n') { 
         Write-Host -ForegroundColor Red -BackgroundColor Black "===> [ The Dragon slumbers. Proceeding without its wisdom. ] <==="
-        $script:DevMode = 0 
+        $global:DevMode = 0 
     } else { 
         Write-Host -ForegroundColor Yellow -BackgroundColor Black "===> [ The Dragon is perplexed. Defaulting to 'No'. ] <==="
-        $script:DevMode = 0 
+        $global:DevMode = 0 
     }
     Write-Host
 }
@@ -435,7 +435,7 @@ set-content Function:prompt {
         $NextForegroundColor = "54"
     }#>
 
-	if($CloudDevOpsMode -eq 1)
+	if($global:CloudDevOpsMode -eq 1)
 	{
 		# Write the current gcp project@account
 		if ($null -ne (Get-Command "gcloud" -ErrorAction Ignore)) {
@@ -535,14 +535,15 @@ set-content Function:prompt {
     # Reset LASTEXITCODE so we don't show it over and over again
     $global:LASTEXITCODE = 0
 	
-	if($CloudDevOpsMode -eq 1){
+	if($global:CloudDevOpsMode -eq 1){
 		# Write one + for each level of the pushd stack
-		if ((get-location -stack).Count -gt 0) {
+		$stackDepth = (Get-Location -Stack).ToArray().Count
+		if ($stackDepth -gt 0) {
 			# Write-Host " " -NoNewLine
-			Write-Host (("+" * ((get-location -stack).Count))) -NoNewLine -ForegroundColor Cyan 
+			Write-Host (("+" * $stackDepth)) -NoNewLine -ForegroundColor Cyan
 			Write-Host "$([char]27)[0m" -NoNewline
 		}
-		
+
 		# Newline
 		Write-Host "$([char]27)[0m :"
 	}
@@ -565,7 +566,7 @@ set-content Function:prompt {
 		$NextForegroundColor = "11"
 	}
 	
-	if($DevMode -eq 1) {
+	if($global:DevMode -eq 1) {
 		if ($null -ne (Get-Command "Get-GitDirectory" -ErrorAction Ignore)) {
 			if (Get-GitDirectory -ne $null) {
 				$GitPromptSettings.PathStatusSeparator = "$([char]27)[38;5;$($NextForegroundColor);48;5;25m  "
@@ -589,11 +590,12 @@ set-content Function:prompt {
 		}
 	}
 	
-	if($CloudDevOpsMode -eq 0){
+	if($global:CloudDevOpsMode -eq 0){
 		# Write one + for each level of the pushd stack
-		if ((get-location -stack).Count -gt 0) {
+		$stackDepth = (Get-Location -Stack).ToArray().Count
+		if ($stackDepth -gt 0) {
 			# Write-Host " " -NoNewLine
-			Write-Host (("+" * ((get-location -stack).Count))) -NoNewLine -ForegroundColor Cyan 
+			Write-Host (("+" * $stackDepth)) -NoNewLine -ForegroundColor Cyan
 			Write-Host "$([char]27)[0m" -NoNewline
 		}
 	}
