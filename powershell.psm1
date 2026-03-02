@@ -16,14 +16,20 @@ function c { cls }
 
 function cdm { Pop-Location; cdv @args; ls; }
 
-function cdv { Push-Location -Path (Get-Variable -Name $args[0] -ValueOnly); ls; }
+function cdv {
+    $path = (Get-Variable -Name $args[0] -Scope Global -ValueOnly -ErrorAction SilentlyContinue)
+    if ($null -eq $path) { $path = [Environment]::GetEnvironmentVariable($args[0]) }
+    if ($null -eq $path) { Write-Error "No variable or env var named '$($args[0])' found"; return }
+    Push-Location -Path $path
+    ls
+}
 
 function cmdmax { Start-Process cmd.exe -WindowStyle Maximized }
 
-function dirs { Get-Location -Stack }
+function dirs { @( Get-Location ) + (Get-Location -Stack).ToArray() | Select-Object Path }
 
 function echov($varName) {
-    if ($varValue = (Get-Variable -Name $varName -ErrorAction SilentlyContinue).Value) {
+    if ($varValue = (Get-Variable -Name $varName -Scope Global -ErrorAction SilentlyContinue).Value) {
         $varValue | Tee-Object -Variable _ | Set-Clipboard
     } else {
         Write-Error "Variable '$varName' does not exist."
@@ -32,7 +38,11 @@ function echov($varName) {
 
 function ex(){ explorer ($args -join ' ') }
 
-function exv(){ explorer ((Get-Variable -Name $args[0] -ValueOnly) -join ' ') }
+function exv(){
+    $path = (Get-Variable -Name $args[0] -Scope Global -ValueOnly -ErrorAction SilentlyContinue)
+    if ($null -eq $path) { $path = [Environment]::GetEnvironmentVariable($args[0]) }
+    explorer ($path -join ' ')
+}
 
 function func {
     param (
@@ -335,7 +345,6 @@ function Sync-PathToTools {
         }
     }
 }
-
 
 # Export all functions to make them available globally when module is imported with -Global
 Export-ModuleMember -Function * -Alias * -Variable *
