@@ -39,8 +39,8 @@ function prompt {
 } #>
 
 function LoadPowerShellDoskeys{
-	Import-Module "$DOSFILE_BASE" -Force -DisableNameChecking -Global
-	Import-Module "$DOSFILE" -Force -DisableNameChecking -Global
+	Import-Module "$DOSFILE" -Force -DisableNameChecking -Global      # OneDrive baseline first
+	Import-Module "$DOSFILE_BASE" -Force -DisableNameChecking -Global  # project overrides second (wins)
 } Set-Alias pwshdoskeys LoadPowerShellDoskeys -Force
 
 function Reload-Profile {
