@@ -22,6 +22,7 @@ import os
 import sys
 import subprocess
 import urllib.request
+import urllib.error
 
 # ---------------------------------------------------------------------------
 # Provider registry — ordered by preference (cheapest / most preferred first)
@@ -55,12 +56,21 @@ def is_ollama_available(base_url="http://localhost:11434", timeout=2):
     Probes GET /api/tags to check if Ollama is running.
     Uses only stdlib (urllib) — no extra dependencies.
     2-second timeout: localhost should respond in milliseconds if up.
+    Returns (True, None) on success, or (False, reason_string) on failure.
     """
     try:
         req = urllib.request.urlopen(f"{base_url}/api/tags", timeout=timeout)
-        return req.status == 200
-    except Exception:
-        return False
+        return (True, None) if req.status == 200 else (False, f"Ollama returned HTTP {req.status}")
+    except urllib.error.HTTPError as e:
+        return (False, f"Ollama returned HTTP {e.code}")
+    except urllib.error.URLError as e:
+        if isinstance(e.reason, ConnectionRefusedError):
+            return (False, "Connection refused (Ollama not running?)")
+        if isinstance(e.reason, (TimeoutError, OSError)) and 'timed out' in str(e.reason):
+            return (False, f"Connection timed out after {timeout}s (Ollama unresponsive?)")
+        return (False, f"Network error: {e.reason}")
+    except Exception as e:
+        return (False, f"Unexpected error: {e}")
 
 
 def find_provider():
@@ -82,6 +92,40 @@ def mask_key(value, show=4):
 def print_status(msg):
     """Print to stderr so it doesn't pollute captured output in pipelines."""
     print(msg, file=sys.stderr, flush=True)
+
+
+def ask_cloud_fallback(ollama_reason):
+    """
+    Show why Ollama was skipped, offer to fall through to a cloud provider.
+    Returns (provider, key_var) if user accepts, or (None, None) if declined.
+    """
+    print_status(f"\n⚠️  Ollama skipped: {ollama_reason}")
+
+    provider, key_var = find_provider()
+    if not provider:
+        print_status("   No cloud providers configured either.")
+        print_status("   Set ANTHROPIC_API_KEY, GOOGLE_API_KEY, or OPENAI_API_KEY.")
+        return None, None
+
+    masked = mask_key(os.environ.get(key_var, ''))
+    print_status(f"   Next available: {provider['icon']} {provider['name']} ({key_var}={masked})")
+    print_status(f"   This will use your API key.")
+
+    if not sys.stdin.isatty():
+        print_status("   Non-interactive session — declining cloud fallback.")
+        return None, None
+
+    try:
+        answer = input("   Continue with cloud provider? (y/n): ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print_status("")
+        return None, None
+
+    if answer == 'y':
+        return provider, key_var
+
+    print_status("   Declined.")
+    return None, None
 
 
 if __name__ == '__main__':
@@ -112,8 +156,10 @@ if __name__ == '__main__':
     # Skipped when --cloud / -c is passed.
     # -----------------------------------------------------------------------
     ollama_base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+    ollama_ok, ollama_reason = is_ollama_available(base_url=ollama_base_url)
+    provider, key_var = None, None
 
-    if not cloud_mode and is_ollama_available(base_url=ollama_base_url):
+    if not cloud_mode and ollama_ok:
         script_path = os.path.join(SCRIPT_DIR, 'aicl.py')
 
         if not os.path.isfile(script_path):
@@ -132,21 +178,35 @@ if __name__ == '__main__':
         result = subprocess.run(
             [sys.executable, script_path] + forward_args
         )
-        sys.exit(result.returncode)
+        if result.returncode == 0:
+            sys.exit(0)
+
+        # aicl.py failed (all internal model fallbacks exhausted)
+        provider, key_var = ask_cloud_fallback(
+            "Local generation failed (all models exhausted or error)"
+        )
+        if not provider:
+            sys.exit(result.returncode)
+        # fall through to cloud execution below
 
     # -----------------------------------------------------------------------
     # Priority 1-3: Cloud providers — detect by API key
     # -----------------------------------------------------------------------
-    provider, key_var = find_provider()
+    if cloud_mode:
+        # User explicitly wants cloud — no prompt needed
+        provider, key_var = find_provider()
+    elif provider is None and not ollama_ok:
+        # Ollama was unreachable — tell user why and ask before using API key
+        provider, key_var = ask_cloud_fallback(ollama_reason)
 
     if not provider:
-        print_status("\n🚨 No cloud AI provider available.")
+        print_status("\n🚨 No AI provider available.")
         if cloud_mode:
             print_status("   --cloud mode is active (Ollama bypassed).")
-        else:
-            print_status("   Ollama is also not running.")
-            print_status("   Option 0 (free, local): start Ollama — no API key needed")
-            print_status("     • Run: ollama serve  (or launch the Ollama app)")
+        elif ollama_reason:
+            print_status(f"   Ollama: {ollama_reason}")
+        print_status("   Option 0 (free, local): start Ollama — no API key needed")
+        print_status("     • Run: ollama serve  (or launch the Ollama app)")
         print_status("   Set one of the following environment variables:")
         print_status("   • ANTHROPIC_API_KEY  — Anthropic Claude")
         print_status("   • GOOGLE_API_KEY or GEMINI_API_KEY  — Google Gemini")
