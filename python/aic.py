@@ -21,6 +21,7 @@ Override flags (consumed by this wrapper, NOT forwarded to the backend):
 import os
 import sys
 import subprocess
+import time
 import urllib.request
 import urllib.error
 
@@ -94,38 +95,71 @@ def print_status(msg):
     print(msg, file=sys.stderr, flush=True)
 
 
-def ask_cloud_fallback(ollama_reason):
+def ask_ollama_retry_or_fallback(ollama_reason, ollama_base_url, auto_retries=1):
     """
-    Show why Ollama was skipped, offer to fall through to a cloud provider.
-    Returns (provider, key_var) if user accepts, or (None, None) if declined.
-    """
-    print_status(f"\n⚠️  Ollama skipped: {ollama_reason}")
+    Show why Ollama failed, auto-retry once, then offer 3-way choice:
+      (r)etry — user can fix Ollama and try again
+      (f)allback — use cloud provider
+      (e)xit — abort
 
+    Returns (action, provider_or_None, key_var_or_None) where action is
+    'retry', 'fallback', or 'exit'.
+    """
+    print_status(f"\n⚠️  Ollama: {ollama_reason}")
+
+    # --- Auto-retry phase ---
+    for attempt in range(1, auto_retries + 1):
+        print_status(f"🔄 Retrying Ollama... (attempt {attempt})")
+        time.sleep(2)
+        ok, reason = is_ollama_available(base_url=ollama_base_url)
+        if ok:
+            print_status("✅ Ollama is back!")
+            return ('retry', None, None)
+        ollama_reason = reason
+        print_status(f"⚠️  Ollama: {ollama_reason}")
+
+    # --- Interactive 3-way menu ---
     provider, key_var = find_provider()
-    if not provider:
-        print_status("   No cloud providers configured either.")
-        print_status("   Set ANTHROPIC_API_KEY, GOOGLE_API_KEY, or OPENAI_API_KEY.")
-        return None, None
-
-    masked = mask_key(os.environ.get(key_var, ''))
-    print_status(f"   Next available: {provider['icon']} {provider['name']} ({key_var}={masked})")
-    print_status(f"   This will use your API key.")
+    if provider:
+        masked = mask_key(os.environ.get(key_var, ''))
+        print_status(f"   Cloud available: {provider['icon']} {provider['name']} ({key_var}={masked})")
 
     if not sys.stdin.isatty():
-        print_status("   Non-interactive session — declining cloud fallback.")
-        return None, None
+        print_status("   Non-interactive session — exiting.")
+        return ('exit', None, None)
 
-    try:
-        answer = input("   Continue with cloud provider? (y/n): ").strip().lower()
-    except (EOFError, KeyboardInterrupt):
-        print_status("")
-        return None, None
+    while True:
+        try:
+            choices = "(r)etry / (f)allback to cloud / (e)xit" if provider else "(r)etry / (e)xit"
+            answer = input(f"   {choices} [r/f/e]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print_status("")
+            return ('exit', None, None)
 
-    if answer == 'y':
-        return provider, key_var
+        if answer == 'r':
+            return ('retry', None, None)
+        if answer == 'f' and provider:
+            return ('fallback', provider, key_var)
+        if answer == 'e':
+            return ('exit', None, None)
+        # invalid input — re-prompt
 
-    print_status("   Declined.")
-    return None, None
+
+def run_ollama(forward_args, ollama_base_url, debug_mode):
+    """Launch aicl.py and return the subprocess result."""
+    script_path = os.path.join(SCRIPT_DIR, 'aicl.py')
+    if not os.path.isfile(script_path):
+        print_status(f"\n🚨 Backend script not found: {script_path}")
+        print_status("   Make sure aicl.py is in the same directory as aic.py.")
+        sys.exit(1)
+    if debug_mode:
+        print_status(f"🤖 [aic] Provider  : 🟣 Ollama (local)")
+        print_status(f"🤖 [aic] Endpoint  : {ollama_base_url}")
+        print_status(f"🤖 [aic] Script    : {script_path}")
+        print_status(f"🤖 [aic] Args      : {forward_args}")
+    else:
+        print_status(f"🤖 via Ollama (local)")
+    return subprocess.run([sys.executable, script_path] + forward_args)
 
 
 if __name__ == '__main__':
@@ -159,35 +193,42 @@ if __name__ == '__main__':
     ollama_ok, ollama_reason = is_ollama_available(base_url=ollama_base_url)
     provider, key_var = None, None
 
-    if not cloud_mode and ollama_ok:
-        script_path = os.path.join(SCRIPT_DIR, 'aicl.py')
+    if not cloud_mode:
+        # --- Ollama not reachable: auto-retry once, then 3-way menu ---
+        if not ollama_ok:
+            action, provider, key_var = ask_ollama_retry_or_fallback(
+                ollama_reason, ollama_base_url
+            )
+            while action == 'retry':
+                ollama_ok, ollama_reason = is_ollama_available(base_url=ollama_base_url)
+                if ollama_ok:
+                    break
+                action, provider, key_var = ask_ollama_retry_or_fallback(
+                    ollama_reason, ollama_base_url, auto_retries=0
+                )
 
-        if not os.path.isfile(script_path):
-            print_status(f"\n🚨 Backend script not found: {script_path}")
-            print_status("   Make sure aicl.py is in the same directory as aic.py.")
-            sys.exit(1)
+        # --- Ollama reachable: run aicl.py with retry support ---
+        if ollama_ok:
+            result = run_ollama(forward_args, ollama_base_url, debug_mode)
+            if result.returncode == 0:
+                sys.exit(0)
 
-        if debug_mode:
-            print_status(f"🤖 [aic] Provider  : 🟣 Ollama (local)")
-            print_status(f"🤖 [aic] Endpoint  : {ollama_base_url}")
-            print_status(f"🤖 [aic] Script    : {script_path}")
-            print_status(f"🤖 [aic] Args      : {forward_args}")
-        else:
-            print_status(f"🤖 via Ollama (local)")
-
-        result = subprocess.run(
-            [sys.executable, script_path] + forward_args
-        )
-        if result.returncode == 0:
-            sys.exit(0)
-
-        # aicl.py failed (all internal model fallbacks exhausted)
-        provider, key_var = ask_cloud_fallback(
-            "Local generation failed (all models exhausted or error)"
-        )
-        if not provider:
-            sys.exit(result.returncode)
-        # fall through to cloud execution below
+            # aicl.py failed — offer retry / fallback / exit
+            action, provider, key_var = ask_ollama_retry_or_fallback(
+                "Local generation failed (all models exhausted or error)",
+                ollama_base_url,
+            )
+            while action == 'retry':
+                result = run_ollama(forward_args, ollama_base_url, debug_mode)
+                if result.returncode == 0:
+                    sys.exit(0)
+                action, provider, key_var = ask_ollama_retry_or_fallback(
+                    "Local generation failed (all models exhausted or error)",
+                    ollama_base_url, auto_retries=0,
+                )
+            if action == 'exit':
+                sys.exit(result.returncode)
+            # action == 'fallback' — fall through to cloud execution below
 
     # -----------------------------------------------------------------------
     # Priority 1-3: Cloud providers — detect by API key
@@ -195,9 +236,6 @@ if __name__ == '__main__':
     if cloud_mode:
         # User explicitly wants cloud — no prompt needed
         provider, key_var = find_provider()
-    elif provider is None and not ollama_ok:
-        # Ollama was unreachable — tell user why and ask before using API key
-        provider, key_var = ask_cloud_fallback(ollama_reason)
 
     if not provider:
         print_status("\n🚨 No AI provider available.")
