@@ -95,54 +95,31 @@ def print_status(msg):
     print(msg, file=sys.stderr, flush=True)
 
 
-def ask_ollama_retry_or_fallback(ollama_reason, ollama_base_url, auto_retries=1):
+def ollama_retry_or_exit(ollama_reason, ollama_base_url, auto_retries=1):
     """
-    Show why Ollama failed, auto-retry once, then offer 3-way choice:
-      (r)etry — user can fix Ollama and try again
-      (f)allback — use cloud provider
-      (e)xit — abort
+    Show why Ollama failed, auto-retry once, then exit.
+    No interactive prompt — git alias shells freeze on input().
 
-    Returns (action, provider_or_None, key_var_or_None) where action is
-    'retry', 'fallback', or 'exit'.
+    Returns True if Ollama came back (caller should re-run), False to exit.
     """
     print_status(f"\n⚠️  Ollama: {ollama_reason}")
 
-    # --- Auto-retry phase ---
+    # --- Auto-retry phase (non-interactive, safe everywhere) ---
     for attempt in range(1, auto_retries + 1):
         print_status(f"🔄 Retrying Ollama... (attempt {attempt})")
         time.sleep(2)
         ok, reason = is_ollama_available(base_url=ollama_base_url)
         if ok:
             print_status("✅ Ollama is back!")
-            return ('retry', None, None)
+            return True
         ollama_reason = reason
         print_status(f"⚠️  Ollama: {ollama_reason}")
 
-    # --- Interactive 3-way menu ---
-    provider, key_var = find_provider()
-    if provider:
-        masked = mask_key(os.environ.get(key_var, ''))
-        print_status(f"   Cloud available: {provider['icon']} {provider['name']} ({key_var}={masked})")
-
-    if not sys.stdin.isatty():
-        print_status("   Non-interactive session — exiting.")
-        return ('exit', None, None)
-
-    while True:
-        try:
-            choices = "(r)etry / (f)allback to cloud / (e)xit" if provider else "(r)etry / (e)xit"
-            answer = input(f"   {choices} [r/f/e]: ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            print_status("")
-            return ('exit', None, None)
-
-        if answer == 'r':
-            return ('retry', None, None)
-        if answer == 'f' and provider:
-            return ('fallback', provider, key_var)
-        if answer == 'e':
-            return ('exit', None, None)
-        # invalid input — re-prompt
+    # --- No interactive prompt — just show guidance and exit ---
+    print_status("   Auto-retry exhausted.")
+    print_status("   To use cloud instead: aic --cloud  (or aic -c)")
+    print_status("   To fix Ollama: ollama serve  (then re-run aic)")
+    return False
 
 
 def run_ollama(forward_args, ollama_base_url, debug_mode):
@@ -194,41 +171,30 @@ if __name__ == '__main__':
     provider, key_var = None, None
 
     if not cloud_mode:
-        # --- Ollama not reachable: auto-retry once, then 3-way menu ---
+        # --- Ollama not reachable: auto-retry once, then exit ---
         if not ollama_ok:
-            action, provider, key_var = ask_ollama_retry_or_fallback(
-                ollama_reason, ollama_base_url
-            )
-            while action == 'retry':
-                ollama_ok, ollama_reason = is_ollama_available(base_url=ollama_base_url)
-                if ollama_ok:
-                    break
-                action, provider, key_var = ask_ollama_retry_or_fallback(
-                    ollama_reason, ollama_base_url, auto_retries=0
-                )
+            came_back = ollama_retry_or_exit(ollama_reason, ollama_base_url)
+            if came_back:
+                ollama_ok = True
+            else:
+                sys.exit(1)
 
-        # --- Ollama reachable: run aicl.py with retry support ---
+        # --- Ollama reachable: run aicl.py ---
         if ollama_ok:
             result = run_ollama(forward_args, ollama_base_url, debug_mode)
             if result.returncode == 0:
                 sys.exit(0)
 
-            # aicl.py failed — offer retry / fallback / exit
-            action, provider, key_var = ask_ollama_retry_or_fallback(
+            # aicl.py failed — auto-retry once, then exit
+            came_back = ollama_retry_or_exit(
                 "Local generation failed (all models exhausted or error)",
                 ollama_base_url,
             )
-            while action == 'retry':
+            if came_back:
                 result = run_ollama(forward_args, ollama_base_url, debug_mode)
-                if result.returncode == 0:
-                    sys.exit(0)
-                action, provider, key_var = ask_ollama_retry_or_fallback(
-                    "Local generation failed (all models exhausted or error)",
-                    ollama_base_url, auto_retries=0,
-                )
-            if action == 'exit':
                 sys.exit(result.returncode)
-            # action == 'fallback' — fall through to cloud execution below
+            else:
+                sys.exit(result.returncode)
 
     # -----------------------------------------------------------------------
     # Priority 1-3: Cloud providers — detect by API key
