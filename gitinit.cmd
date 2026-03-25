@@ -22,7 +22,8 @@ git config --global commit.gpgSign true
 @REM To auto-delete local branch if remote is deleted upon git fetch or git pull
 git config --global fetch.prune true
 
-git config --global gpg.program "%ROOT%\ProgramFiles(x86)\Gpg4win\bin\gpg.exe"
+REM git config --global gpg.program "%ROOT%\ProgramFiles(x86)\Gpg4win\bin\gpg.exe"
+git config --global gpg.program "C:\Program Files\GnuPG\bin\gpg.exe"
 
 git status -v 
 REM git restore --staged --worktree */.classpath */.factorypath */.settings/* */.project */*.log *.gitignore */package-lock.json
