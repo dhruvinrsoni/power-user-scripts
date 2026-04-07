@@ -24,6 +24,7 @@ import subprocess
 import time
 import urllib.request
 import urllib.error
+import msvcrt
 
 # ---------------------------------------------------------------------------
 # Provider registry — ordered by preference (cheapest / most preferred first)
@@ -185,16 +186,46 @@ if __name__ == '__main__':
             if result.returncode == 0:
                 sys.exit(0)
 
-            # aicl.py failed — auto-retry once, then exit
-            came_back = ollama_retry_or_exit(
-                "Local generation failed (all models exhausted or error)",
-                ollama_base_url,
-            )
-            if came_back:
-                result = run_ollama(forward_args, ollama_base_url, debug_mode)
-                sys.exit(result.returncode)
+            if result.returncode == 2:
+                # Exit code 2 = all local models exhausted (timeout/OOM/403/etc.)
+                # Retrying Ollama is futile — offer cloud switch instead.
+                provider, key_var = find_provider()
+                if provider:
+                    print_status(f"\n⚠️  All local Ollama models exhausted.")
+                    print_status(f"   Cloud provider available: {provider['name']}")
+                    print_status(f"   Switch to {provider['name']}? [y/n]: ", end='')
+                    try:
+                        key = msvcrt.getch()
+                        print_status(key.decode('utf-8', errors='replace'))
+                    except Exception:
+                        key = b'n'
+                    if key.lower() == b'y':
+                        cloud_mode = True
+                        # fall through to cloud provider section below
+                    else:
+                        print_status("\n❌ Aborted.")
+                        print_status("   Tip: use 'aic --cloud' or 'aic -c' to skip Ollama next time.")
+                        sys.exit(2)
+                else:
+                    print_status("\n🚨 All local models exhausted and no cloud API keys configured.")
+                    print_status("   Option 1: increase timeout — OLLAMA_TIMEOUT=120 git aic")
+                    print_status("   Option 2: pick a model manually — git aic -m")
+                    print_status("   Option 3: set a cloud API key:")
+                    print_status("     • ANTHROPIC_API_KEY  — Anthropic Claude")
+                    print_status("     • GOOGLE_API_KEY     — Google Gemini")
+                    print_status("     • OPENAI_API_KEY     — OpenAI")
+                    sys.exit(2)
             else:
-                sys.exit(result.returncode)
+                # Exit code 1 = generic/connectivity error — retry Ollama once
+                came_back = ollama_retry_or_exit(
+                    "Local generation failed (all models exhausted or error)",
+                    ollama_base_url,
+                )
+                if came_back:
+                    result = run_ollama(forward_args, ollama_base_url, debug_mode)
+                    sys.exit(result.returncode)
+                else:
+                    sys.exit(result.returncode)
 
     # -----------------------------------------------------------------------
     # Priority 1-3: Cloud providers — detect by API key
