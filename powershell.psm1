@@ -90,6 +90,30 @@ function git-ls { Get-ChildItem -Recurse -File | Where-Object { $_.FullName -not
 #
 function gpg-check { echo "Verifying commit: $(git rev-parse HEAD)" | gpg --batch --yes --local-user FD18D9D3B8C47685 --clearsign }
 
+# Seamless per-repo GitHub CLI authentication
+function gh {
+    # Check if the current git repo has a custom local gh token
+    $localToken = git config --local gh.token 2>$null
+
+    if (![string]::IsNullOrWhiteSpace($localToken)) {
+        # Temporarily inject the local token into the environment
+        $originalToken = $env:GH_TOKEN
+        $env:GH_TOKEN = $localToken
+        
+        try {
+            # Run the actual GitHub CLI command
+            & gh.exe @args
+        } finally {
+            # Clean up immediately so it doesn't leak into other directories
+            if ($originalToken) { $env:GH_TOKEN = $originalToken } 
+            else { Remove-Item Env:\GH_TOKEN -ErrorAction SilentlyContinue }
+        }
+    } else {
+        # No local token found, run normally using global auth
+        & gh.exe @args
+    }
+}
+
 
 function SetGKECluster {
     param (
