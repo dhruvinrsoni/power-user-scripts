@@ -79,7 +79,7 @@ function func {
     Get-Alias | Where-Object { $_.Definition -eq $FunctionName } | Format-Table Name, Definition
 }
 
-function g { git $args }
+function g { git @args }
 
 function git-ls { Get-ChildItem -Recurse -File | Where-Object { $_.FullName -notmatch '\.git\\' } | ForEach-Object { $_.FullName.Replace('$PWD.Path', '') } }
 
