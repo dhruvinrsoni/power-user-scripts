@@ -52,6 +52,16 @@ OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "512"))
 # On cold-start (model loading from disk) the first call can still be slow.
 OLLAMA_TIMEOUT     = int(os.environ.get("OLLAMA_TIMEOUT",     "60"))
 
+# Max fallback models to try after the primary model fails.
+# Keeps the failure path fast — on a busy machine you don't want to wait
+# through 10+ models.  Use -m to manually pick a specific model instead.
+MAX_FALLBACK_MODELS = int(os.environ.get("OLLAMA_MAX_FALLBACKS", "2"))
+
+# Max model size (in GB) eligible for automatic fallback.
+# With browsers + IDEs open, models above ~4 GB will likely OOM or swap.
+# Large models can still be used explicitly via -m (interactive picker).
+OLLAMA_MAX_MODEL_SIZE = int(os.environ.get("OLLAMA_MAX_MODEL_SIZE_GB", "4")) * (1024 ** 3)
+
 # ---------------------------------------------------------------------------
 # Preferred models for commit message generation — ordered SMALL → LARGE.
 # Smaller models use less RAM and respond faster; larger ones give better quality.
@@ -412,7 +422,7 @@ def generate_commit_message(prompt, include_signature=True, model_name=DEFAULT_M
             else:
                 print("\n🚨 All models timed out. Cannot generate commit message.")
                 print(f"   Tip: increase timeout with OLLAMA_TIMEOUT=120 or reduce RAM usage by stopping other apps.")
-                sys.exit(1)
+                sys.exit(2)
 
         except requests.exceptions.ConnectionError:
             msg = f"⚠️  Connection to Ollama lost (model may have crashed or been evicted from RAM)."
@@ -423,7 +433,7 @@ def generate_commit_message(prompt, include_signature=True, model_name=DEFAULT_M
             else:
                 print(f"\n🚨 Ollama is not responding. Cannot generate commit message.")
                 print("   Try running 'ollama serve' to restart the service.")
-                sys.exit(1)
+                sys.exit(2)
 
         except requests.exceptions.HTTPError as e:
             status = e.response.status_code
@@ -436,7 +446,16 @@ def generate_commit_message(prompt, include_signature=True, model_name=DEFAULT_M
                     continue
                 else:
                     print("\n🚨 All models returned server errors.")
-                    sys.exit(1)
+                    sys.exit(2)
+            elif status == 403:
+                msg = f"⚠️  {current_model} returned 403 Forbidden (cloud model or access denied)."
+                print(f"\n{msg}")
+                if has_more_fallbacks:
+                    print("   Skipping to next model...")
+                    continue
+                else:
+                    print(f"\n🚨 All models exhausted (last was 403 Forbidden).")
+                    sys.exit(2)
             elif status == 404:
                 msg = f"⚠️  Model '{current_model}' not found in Ollama."
                 print(f"\n{msg}")
@@ -446,7 +465,7 @@ def generate_commit_message(prompt, include_signature=True, model_name=DEFAULT_M
                 else:
                     print(f"\n🚨 No usable models found.")
                     print(f"   Install one with: ollama pull llama3.2:3b")
-                    sys.exit(1)
+                    sys.exit(2)
             else:
                 print(f"\n🚨 HTTP Error {status}: {e.response.text}")
                 sys.exit(1)
@@ -465,7 +484,7 @@ def generate_commit_message(prompt, include_signature=True, model_name=DEFAULT_M
 
     # Should not reach here, but guard anyway
     print("\n🚨 All models exhausted without generating a message.")
-    sys.exit(1)
+    sys.exit(2)
 
 
 def make_git_commit(message, dry_run=False, review=False, push=False, add_all=False, can_regenerate=False):
@@ -662,15 +681,21 @@ if __name__ == "__main__":
             print(f"⚠️  None of the preferred models found. Using first available: {target_model} ({target_size})")
         print(f"🤖 Using model: {target_model} ({target_size}) (Ollama local)\n")
 
-    # --- Build fallback chain: all other available models sorted by size (small → large) ---
-    # Used by generate_commit_message() to automatically try lighter models on failure.
+    # --- Build fallback chain: local-only models sorted by size (small → large) ---
+    # Filters out cloud/remote models (0 bytes or :cloud suffix) and models too
+    # large for typical RAM availability.  Capped to MAX_FALLBACK_MODELS so the
+    # failure path stays fast.  Use -m to manually pick any model.
     _fallback_chain = [
         m["name"]
         for m in sorted(
-            [m for m in _available_at_startup if m["name"] != target_model],
+            [m for m in _available_at_startup
+             if m["name"] != target_model
+             and m["size_bytes"] > 0
+             and ":cloud" not in m["name"].lower()
+             and m["size_bytes"] <= OLLAMA_MAX_MODEL_SIZE],
             key=lambda m: m["size_bytes"]
         )
-    ]
+    ][:MAX_FALLBACK_MODELS]
 
     # --- Interactive Add Logic ---
     if args.interactive_add:
