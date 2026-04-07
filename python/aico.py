@@ -421,40 +421,84 @@ def make_git_commit(message, dry_run=False, review=False, push=False, add_all=Fa
         should_commit = True
 
     if should_commit:
-        try:
-            # Avoid duplicating commit flags if they were already added in the review branch
-            if temp_file_name and not any(opt in commit_command for opt in ('-e', '-F', '--file')):
-                commit_command.extend(['--file', temp_file_name, '--edit'])
-            elif not any(opt in commit_command for opt in ('-m', '--message', '-e', '-F', '--file')):
-                commit_command.extend(['-m', message])
+        if temp_file_name and not any(opt in commit_command for opt in ('-e', '-F', '--file')):
+            commit_command.extend(['--file', temp_file_name, '--edit'])
+        elif not any(opt in commit_command for opt in ('-m', '--message', '-e', '-F', '--file')):
+            commit_command.extend(['-m', message])
 
-            print("\n🚀 Executing commit...")
-            result = subprocess.run(commit_command, check=True, text=True, encoding='utf-8')
-            
-            if temp_file_name:
-                try:
-                    os.unlink(temp_file_name)
-                except:
-                    pass
-            
-            print("\n✅ Commit successful!")
-            # Show the last commit details (parity with `aic.py` output)
+        while True:
             try:
-                subprocess.run([
-                    'git', '--no-pager', 'log', '-1',
-                    '--pretty=format:%C(yellow)%h%Creset %s %C(green)(%ar) %C(bold blue)<%an>%Creset%n%B%n'
-                ], check=True)
-            except Exception:
-                # Non-fatal: if displaying the log fails, continue normally
-                pass
+                print("\n🚀 Executing commit...")
+                subprocess.run(commit_command, check=True, text=True, encoding='utf-8',
+                               stderr=subprocess.PIPE)
 
-            if push:
-                print("\n📤 Pushing to remote...")
-                push_result = subprocess.run(['git', 'push', '--verbose', '--progress'], check=True, text=True, encoding='utf-8')
-                print("✅ Push successful!")
-        except subprocess.CalledProcessError as e:
-            print(f"\n🚨 Commit failed: {e}")
-            sys.exit(1)
+                if temp_file_name:
+                    try:
+                        os.unlink(temp_file_name)
+                    except Exception:
+                        pass
+
+                print("\n✅ Commit successful!")
+                try:
+                    subprocess.run([
+                        'git', '--no-pager', 'log', '-1',
+                        '--pretty=format:%C(yellow)%h%Creset %s %C(green)(%ar) %C(bold blue)<%an>%Creset%n%B%n'
+                    ], check=True)
+                except Exception:
+                    pass
+
+                if push:
+                    print("\n📤 Pushing to remote...")
+                    subprocess.run(['git', 'push', '--verbose', '--progress'], check=True, text=True, encoding='utf-8')
+                    print("✅ Push successful!")
+                break
+
+            except subprocess.CalledProcessError as e:
+                error_output = (e.stderr or str(e)).lower()
+                is_gpg_failure = ('gpg failed to sign' in error_output
+                                  or 'failed to write commit object' in error_output)
+
+                if not is_gpg_failure:
+                    print(f"\n🚨 Commit failed: {e}")
+                    sys.exit(1)
+
+                saved_path = os.path.join('.git', 'COMMIT_MSG_SAVED')
+                try:
+                    with open(saved_path, 'w', encoding='utf-8') as f:
+                        f.write(message)
+                except Exception:
+                    saved_path = None
+
+                print(f"\n🔐 GPG signing failed. Your commit message is preserved.")
+                if saved_path:
+                    print(f"   Message saved to: {saved_path}")
+
+                print("\nChoose an action:")
+                print("  [r] Retry      - Try committing again (fix GPG in another terminal first)")
+                print("  [s] Skip sign  - Commit without GPG signature (--no-gpg-sign)")
+                print("  [n] Abort      - Exit (message saved for manual use)")
+                print()
+                print("Enter your choice (r/s/n): ", end='', flush=True)
+
+                gpg_key = msvcrt.getch()
+                try:
+                    print(gpg_key.decode('utf-8'))
+                except Exception:
+                    print(str(gpg_key))
+
+                if gpg_key.lower() == b'r':
+                    print("\n🔄 Retrying commit...")
+                    continue
+                elif gpg_key.lower() == b's':
+                    print("\n⚠️  Committing without GPG signature...")
+                    if '--no-gpg-sign' not in commit_command:
+                        commit_command.append('--no-gpg-sign')
+                    continue
+                else:
+                    print("\n❌ Aborted. Your message is saved.")
+                    if saved_path:
+                        print(f"   To commit manually: git commit -F {saved_path}")
+                    sys.exit(1)
 
 # --- Script Execution ---
 if __name__ == "__main__":
