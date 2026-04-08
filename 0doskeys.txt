@@ -49,5 +49,6 @@ nrd=npm run dev$*
 nrp=npm run proxy$*
 
 g=git $*
+gh=gh.cmd $*
 
 kai=kubectl-ai $*
