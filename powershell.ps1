@@ -1,26 +1,20 @@
 Write-Host "Running $($MyInvocation.MyCommand.Name)"
 Write-Host "Path: $($MyInvocation.MyCommand.Path)"
 # ─────────────────────────────────────────────────────────────────────────
-#  powershell.psm1 — Power-user functions & aliases for PowerShell
+#  powershell.ps1 — Power-user functions & aliases for PowerShell
 #
 #  LOADING STRATEGY:
-#    This file is designed to work in two modes:
-#      1. Dot-sourced (. $file) — the DEFAULT, used by LoadPowerShellDoskeys
-#      2. Import-Module'd       — still works if someone imports it directly
+#    This file is loaded via dot-sourcing (. $file) by LoadPowerShellDoskeys.
+#    This keeps all functions in the caller's (global) scope so navigation
+#    commands like pd, po, cdv, dirs share the same location stack that the
+#    prompt reads.
 #
-#    We dot-source by default because Import-Module creates an isolated
-#    "module session state" with its own private location stack. Functions
-#    like pd, po, cdv, dirs that call Push-Location / Pop-Location would
-#    push onto the module's private stack instead of the global session
-#    stack, making them invisible to the prompt's '+' depth indicators.
+#    (Renamed from .psm1 to .ps1 because Import-Module creates an isolated
+#    "module session state" with a private location stack, and the .psm1
+#    file association on Windows opens Notepad on every dot-source load.)
 #
-#    Dot-sourcing avoids this — all functions run in the caller's (global)
-#    scope, sharing the same location stack that the prompt reads.
-#
-#  NAMING:
-#    We keep the .psm1 extension for backward compatibility (if anyone
-#    still uses Import-Module on this file, the Export-ModuleMember guard
-#    at the bottom ensures it works correctly).
+#    An Export-ModuleMember guard at the bottom is kept as a safety net in
+#    case anyone ever Import-Module's this file directly.
 # ─────────────────────────────────────────────────────────────────────────
 
 function .. { cd '..' }
