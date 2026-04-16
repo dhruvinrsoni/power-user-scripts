@@ -38,9 +38,24 @@ function prompt {
     return " "
 } #>
 
+# Load functions via dot-sourcing (. $file) instead of Import-Module.
+#
+# WHY: Import-Module creates an isolated "module session state" — a private
+# scope with its own location stack. Any Push-Location / Pop-Location /
+# Get-Location -Stack called inside a module function operates on THAT
+# private stack, not the global one. The prompt reads the global stack,
+# so the '+' depth indicators and 'dirs' output never reflect pushes/pops
+# made by module functions like pd, po, cdv, dirs, mcd, etc.
+#
+# Dot-sourcing (. $file) brings all functions directly into the caller's
+# (global) scope, so every navigation command shares the same single
+# location stack that the prompt reads.
+#
+# Load order: OneDrive baseline first, then repo overrides second.
+# Repo wins on any name conflicts because it's sourced last.
 function LoadPowerShellDoskeys{
-	Import-Module "$DOSFILE" -Force -DisableNameChecking -Global      # OneDrive baseline first
-	Import-Module "$DOSFILE_BASE" -Force -DisableNameChecking -Global  # project overrides second (wins)
+    . "$DOSFILE"        # OneDrive baseline (common/work-specific functions)
+    . "$DOSFILE_BASE"   # Repo overrides (power-user-scripts — wins on conflicts)
 } Set-Alias pwshdoskeys LoadPowerShellDoskeys -Force
 
 function Reload-Profile {

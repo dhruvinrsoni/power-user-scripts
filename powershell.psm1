@@ -1,8 +1,31 @@
 Write-Host "Running $($MyInvocation.MyCommand.Name)"
 Write-Host "Path: $($MyInvocation.MyCommand.Path)"
+# ─────────────────────────────────────────────────────────────────────────
+#  powershell.psm1 — Power-user functions & aliases for PowerShell
+#
+#  LOADING STRATEGY:
+#    This file is designed to work in two modes:
+#      1. Dot-sourced (. $file) — the DEFAULT, used by LoadPowerShellDoskeys
+#      2. Import-Module'd       — still works if someone imports it directly
+#
+#    We dot-source by default because Import-Module creates an isolated
+#    "module session state" with its own private location stack. Functions
+#    like pd, po, cdv, dirs that call Push-Location / Pop-Location would
+#    push onto the module's private stack instead of the global session
+#    stack, making them invisible to the prompt's '+' depth indicators.
+#
+#    Dot-sourcing avoids this — all functions run in the caller's (global)
+#    scope, sharing the same location stack that the prompt reads.
+#
+#  NAMING:
+#    We keep the .psm1 extension for backward compatibility (if anyone
+#    still uses Import-Module on this file, the Export-ModuleMember guard
+#    at the bottom ensures it works correctly).
+# ─────────────────────────────────────────────────────────────────────────
+
 function .. { cd '..' }
 
-function ... {	cd /D '..\..' }
+function ... { Set-Location '..\..' }
 
 function a { type $DOSFILE_BASE; type $DOSFILE }
 
@@ -14,8 +37,10 @@ function b {
 function bye { Stop-Transcript -ErrorAction SilentlyContinue; exit; }  Set-Alias e bye -Force
 function c { cls }
 
+# Pop-Location then cdv — swap top of the location stack for a new project directory
 function cdm { Pop-Location; cdv @args; ls; }
 
+# Navigate to a named variable/env-var path via Push-Location (adds to the prompt's '+' stack)
 function cdv {
     $path = (Get-Variable -Name $args[0] -Scope Global -ValueOnly -ErrorAction SilentlyContinue)
     if ($null -eq $path) { $path = [Environment]::GetEnvironmentVariable($args[0]) }
@@ -26,6 +51,7 @@ function cdv {
 
 function cmdmax { Start-Process cmd.exe -WindowStyle Maximized }
 
+# Show full location stack: current dir + all pushed dirs (visible as '+' in the prompt)
 function dirs { @( Get-Location ) + (Get-Location -Stack).ToArray() | Select-Object Path }
 
 function echov($varName) {
@@ -189,6 +215,7 @@ function lsd { dir | ? { $_.PSIsContainer } }
 
 function lsl { dir | ? { !$_.PSIsContainer } }
 
+# Create a directory and push into it (adds to the prompt's '+' stack)
 function mcd { md $1; Push-Location $1; }
 
 function mci() { echo "mvn clean install $args"; mvn clean install $args; if ($?) { get message "build successful at %TIME% for %CD%" } else { get message "build failed at %TIME% for %CD%"; } }
@@ -201,8 +228,10 @@ function nano { wsl nano $args }
 
 function npp { start-process notepad++.exe "$args" }
 
+# Push-Location to a path, then list contents (each call adds one '+' to the prompt)
 function pd { param($path = $args -join ' '); if ($path) { Push-Location -Path $path }; ls }
 
+# Pop-Location (removes one '+' from the prompt), optionally push a new path
 function po { Pop-Location; pd @args; ls; }
 
 function restartrans { Stop-Transcript -ErrorAction SilentlyContinue; clear; Start-Transcript -Path $File -Append; }
@@ -370,5 +399,12 @@ function Sync-PathToTools {
     }
 }
 
-# Export all functions to make them available globally when module is imported with -Global
-Export-ModuleMember -Function * -Alias * -Variable *
+# Guard: Export-ModuleMember is only meaningful inside a module context.
+# When dot-sourced (our default path), $MyInvocation.MyCommand.ScriptBlock.Module
+# is $null, so this block is skipped — not needed since all functions are
+# already in the caller's (global) scope.
+# When Import-Module'd, this ensures all functions/aliases/variables are
+# properly exported from the module boundary.
+if ($MyInvocation.MyCommand.ScriptBlock.Module) {
+    Export-ModuleMember -Function * -Alias * -Variable *
+}
