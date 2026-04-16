@@ -38,25 +38,25 @@ function prompt {
     return " "
 } #>
 
-# Load functions via dot-sourcing (. $file) instead of Import-Module.
+# Dot-source function libraries directly at profile scope (not inside a function).
 #
-# WHY: Import-Module creates an isolated "module session state" — a private
-# scope with its own location stack. Any Push-Location / Pop-Location /
-# Get-Location -Stack called inside a module function operates on THAT
-# private stack, not the global one. The prompt reads the global stack,
-# so the '+' depth indicators and 'dirs' output never reflect pushes/pops
-# made by module functions like pd, po, cdv, dirs, mcd, etc.
+# WHY NOT A FUNCTION: Dot-sourcing inside a function creates definitions in
+# the function's local scope. When the function returns, all definitions are
+# lost. There is no -Global flag for dot-sourcing like Import-Module has.
 #
-# Dot-sourcing (. $file) brings all functions directly into the caller's
-# (global) scope, so every navigation command shares the same single
-# location stack that the prompt reads.
+# WHY NOT Import-Module: Import-Module creates an isolated "module session
+# state" with its own private location stack. Functions like pd, po, cdv,
+# dirs that call Push-Location / Pop-Location would push onto the module's
+# private stack instead of the global one, making them invisible to the
+# prompt's '+' depth indicators.
 #
-# Load order: OneDrive baseline first, then repo overrides second.
-# Repo wins on any name conflicts because it's sourced last.
-function LoadPowerShellDoskeys{
-    . "$DOSFILE"        # OneDrive baseline (common/work-specific functions)
-    . "$DOSFILE_BASE"   # Repo overrides (power-user-scripts — wins on conflicts)
-} Set-Alias pwshdoskeys LoadPowerShellDoskeys -Force
+# By dot-sourcing here at profile scope (which is global scope via the
+# dot-source loading chain), all functions land in the global scope and
+# persist for the entire session, sharing the same location stack as the prompt.
+#
+# Load order: OneDrive baseline first, repo overrides second (repo wins).
+. "$DOSFILE"        # OneDrive baseline (common/work-specific functions)
+. "$DOSFILE_BASE"   # Repo overrides (power-user-scripts — wins on conflicts)
 
 function Reload-Profile {
 	Stop-Transcript;
