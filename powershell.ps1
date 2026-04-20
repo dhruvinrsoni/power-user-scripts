@@ -210,7 +210,7 @@ function lsd { dir | ? { $_.PSIsContainer } }
 function lsl { dir | ? { !$_.PSIsContainer } }
 
 # Create a directory and push into it (adds to the prompt's '+' stack)
-function mcd { md $1; Push-Location $1; }
+function mcd { param($path = $args -join ' '); md $path; Push-Location $path }
 
 function mci() { echo "mvn clean install $args"; mvn clean install $args; if ($?) { get message "build successful at %TIME% for %CD%" } else { get message "build failed at %TIME% for %CD%"; } }
 
