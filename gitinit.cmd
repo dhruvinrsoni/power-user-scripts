@@ -22,6 +22,9 @@ git config --global commit.gpgSign true
 @REM To auto-delete local branch if remote is deleted upon git fetch or git pull
 git config --global fetch.prune true
 
+REM # fetch.pruneTags true: Automatically deletes local tags if they have been removed from the remote repository.
+REM git config --global fetch.pruneTags true
+
 REM git config --global gpg.program "%ROOT%\ProgramFiles(x86)\Gpg4win\bin\gpg.exe"
 git config --global gpg.program "C:\Program Files\GnuPG\bin\gpg.exe"
 
