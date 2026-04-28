@@ -1,4 +1,8 @@
-﻿Write-Host "Running $($MyInvocation.MyCommand.Name) (Path: $($MyInvocation.MyCommand.Path))"
+﻿# Skip this profile when running inside the Cursor Agent terminal (non-interactive).
+# Cursor sets CURSOR_AGENT=1; see https://www.cursor.com/docs/agent/terminal
+if ($env:CURSOR_AGENT) { return }
+
+Write-Host "Running $($MyInvocation.MyCommand.Name) (Path: $($MyInvocation.MyCommand.Path))"
 powershell -noprofile -Window Maximized -Command "exit"
 #powershell -noprofile -Window Minimized -Command "exit"
 
