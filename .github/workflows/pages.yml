@@ -1,0 +1,74 @@
+name: Build and deploy MkDocs site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/pages/**'
+      - '.github/workflows/pages.yml'
+      - 'python/**'
+      - 'git-sutras/**'
+      - 'gh-sutras/**'
+      - 'powershell/**'
+      - 'custom_git/**'
+      - 'Prompts/**'
+      - 'Hacks/**'
+      - 'scripts/**'
+      - 'shcmd/**'
+      - 'cursor/**'
+      - '*.cmd'
+      - 'README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .github/pages/requirements.txt
+
+      - name: Install dependencies
+        working-directory: .github/pages
+        run: pip install -r requirements.txt
+
+      - name: Pre-build (copy external markdown into docs/_imported/)
+        working-directory: .github/pages
+        run: python scripts/prebuild.py
+
+      - name: Build site
+        working-directory: .github/pages
+        run: mkdocs build --strict --site-dir _site
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .github/pages/_site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
