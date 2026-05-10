@@ -1,0 +1,113 @@
+site_name: power-user-scripts
+site_description: A toolkit of terminal aliases, AI commit scripts, and Windows power-user utilities.
+site_url: https://dhruvinrsoni.github.io/power-user-scripts/
+site_author: Dhruvin Rupesh Soni
+
+repo_url: https://github.com/dhruvinrsoni/power-user-scripts
+repo_name: dhruvinrsoni/power-user-scripts
+edit_uri: edit/main/.github/pages/docs/
+
+not_in_nav: |
+  /_imported/*
+
+theme:
+  name: material
+  custom_dir: overrides
+  language: en
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [../../python]
+          options:
+            show_source: false
+            show_root_heading: true
+            heading_level: 3
+            members: false
+            docstring_style: google
+  - git-revision-date-localized:
+      type: date
+      enable_creation_date: false
+      fallback_to_build_date: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      base_path: [docs]
+      check_paths: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/dhruvinrsoni/power-user-scripts
+  generator: false
+
+nav:
+  - Home: index.md
+  - Python AI commits: python.md
+  - Git-Sutras: git-sutras.md
+  - GH-Sutras: gh-sutras.md
+  - Custom Git wrapper: custom-git.md
+  - CMD utilities: cmd-utilities.md
+  - PowerShell profiles: powershell.md
+  - Shell scripts: shell-scripts.md
+  - Prompt templates: prompts.md
+  - Cursor rules: cursor-rules.md
+  - Hacks & tweaks: hacks.md
+  - Archive: archive.md
+  - Contributing: contributing.md

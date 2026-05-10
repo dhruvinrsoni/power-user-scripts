@@ -1,0 +1,86 @@
+/* Hero band on the homepage */
+.hero {
+  margin: -1.5rem -1rem 2.5rem;
+  padding: 4rem 2rem 3.5rem;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(124, 77, 255, 0.18), transparent 55%),
+    radial-gradient(circle at 85% 80%, rgba(63, 81, 181, 0.22), transparent 60%),
+    linear-gradient(135deg, #1a237e 0%, #283593 60%, #3949ab 100%);
+  color: #fff;
+  border-radius: 0 0 12px 12px;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: 2.6rem;
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.hero .tagline {
+  font-size: 1.15rem;
+  opacity: 0.92;
+  margin: 0 0 1.75rem;
+}
+
+.hero .cta {
+  display: inline-flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.hero .cta a {
+  display: inline-block;
+  padding: 0.65rem 1.4rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hero .cta a.primary {
+  background: #fff;
+  color: #1a237e;
+}
+
+.hero .cta a.secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.hero .cta a:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.hero pre {
+  display: inline-block;
+  margin-top: 1.75rem;
+  padding: 0.6rem 1rem;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 6px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.9rem;
+  color: #b3e5fc;
+}
+
+/* Tighten Material's grid cards on the home page */
+.md-content__inner--home .grid.cards > ul > li,
+.md-content__inner--home .grid.cards > .card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.md-content__inner--home .grid.cards > ul > li:hover,
+.md-content__inner--home .grid.cards > .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Hide the auto-generated H1 on home (we render our own hero) */
+.md-content__inner--home > h1:first-of-type {
+  display: none;
+}
