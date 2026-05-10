@@ -7,8 +7,8 @@ repo_url: https://github.com/dhruvinrsoni/power-user-scripts
 repo_name: dhruvinrsoni/power-user-scripts
 edit_uri: edit/main/.github/pages/docs/
 
-not_in_nav: |
-  /_imported/*
+exclude_docs: |
+  _imported/*
 
 theme:
   name: material
