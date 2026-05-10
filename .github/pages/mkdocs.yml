@@ -95,6 +95,9 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/dhruvinrsoni/power-user-scripts
+    - icon: fontawesome/brands/x-twitter
+      link: https://twitter.com/dhruvinrsoni
+      name: "@dhruvinrsoni on X"
   generator: false
 
 nav:

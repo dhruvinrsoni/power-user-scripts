@@ -84,3 +84,39 @@
 .md-content__inner--home > h1:first-of-type {
   display: none;
 }
+
+/* ---- Responsive hero: scale down on small screens ---- */
+@media (max-width: 600px) {
+  .hero {
+    margin: -1.5rem -0.6rem 2rem;
+    padding: 2.4rem 1.2rem 2rem;
+    border-radius: 0 0 8px 8px;
+  }
+  .hero h1 {
+    font-size: 1.9rem;
+    line-height: 1.15;
+  }
+  .hero .tagline {
+    font-size: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  .hero .cta {
+    gap: 0.5rem;
+  }
+  .hero .cta a {
+    padding: 0.55rem 1rem;
+    font-size: 0.95rem;
+  }
+  .hero pre {
+    margin-top: 1.25rem;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+@media (max-width: 380px) {
+  .hero h1 { font-size: 1.6rem; }
+  .hero .tagline { font-size: 0.95rem; }
+}

@@ -1,1 +1,86 @@
 {% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+
+  {# ===== Additional SEO / indexing ===== #}
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <meta name="keywords" content="power-user, scripts, terminal, aliases, AI commits, Windows, PowerShell, batch, git wrapper, productivity, toolbox" />
+
+  {# ===== Color scheme & theme color (light + dark) ===== #}
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#3f51b5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#1a237e" media="(prefers-color-scheme: dark)" />
+
+  {# ===== Open Graph (Facebook, LinkedIn, Slack, Discord) ===== #}
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="power-user-scripts" />
+  <meta property="og:title" content="{{ config.site_name }}" />
+  <meta property="og:description" content="{{ config.site_description }}" />
+  <meta property="og:url" content="{{ page.canonical_url or config.site_url }}" />
+  <meta property="og:locale" content="en_US" />
+  {# TODO: replace with a real 1200x630 PNG once you create one. #}
+  <meta property="og:image" content="https://dhruvinrsoni.github.io/power-user-scripts/og-image.png" />
+  <meta property="og:image:alt" content="power-user-scripts — terminal aliases, AI commits, Windows tools" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  {# ===== Twitter Cards (X / Twitter) ===== #}
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@dhruvinrsoni" />
+  <meta name="twitter:creator" content="@dhruvinrsoni" />
+  <meta name="twitter:title" content="{{ config.site_name }}" />
+  <meta name="twitter:description" content="{{ config.site_description }}" />
+  <meta name="twitter:image" content="https://dhruvinrsoni.github.io/power-user-scripts/og-image.png" />
+  <meta name="twitter:image:alt" content="power-user-scripts — terminal aliases, AI commits, Windows tools" />
+
+  {# ===== iOS / Apple Web App ===== #}
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Scripts" />
+  <meta name="format-detection" content="telephone=no" />
+  {# TODO: replace with real 180x180 PNG once available #}
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+
+  {# ===== Windows / Microsoft Tile ===== #}
+  <meta name="msapplication-TileColor" content="#3f51b5" />
+  <meta name="msapplication-config" content="none" />
+
+  {# ===== Web App Manifest (PWA) ===== #}
+  <link rel="manifest" href="manifest.webmanifest" />
+
+  {# ===== Search engine verification (commented placeholders) ===== #}
+  {# <meta name="google-site-verification" content="YOUR_CODE_HERE" /> #}
+  {# <meta name="msvalidate.01" content="YOUR_BING_CODE_HERE" /> #}
+
+  {# ===== Schema.org structured data (JSON-LD) ===== #}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://dhruvinrsoni.github.io/power-user-scripts/#website",
+        "url": "https://dhruvinrsoni.github.io/power-user-scripts/",
+        "name": "{{ config.site_name }}",
+        "description": "{{ config.site_description }}",
+        "inLanguage": "en-US"
+      },
+      {
+        "@type": "SoftwareSourceCode",
+        "@id": "https://dhruvinrsoni.github.io/power-user-scripts/#repo",
+        "name": "power-user-scripts",
+        "description": "{{ config.site_description }}",
+        "codeRepository": "https://github.com/dhruvinrsoni/power-user-scripts",
+        "programmingLanguage": ["Batchfile", "PowerShell", "Shell", "Python"],
+        "license": "https://opensource.org/licenses/MIT",
+        "author": {
+          "@type": "Person",
+          "name": "Dhruvin Soni",
+          "url": "https://dhruvinrsoni.github.io/dhruvinrsoni/"
+        }
+      }
+    ]
+  }
+  </script>
+{% endblock %}
