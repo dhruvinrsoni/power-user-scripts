@@ -1,0 +1,11 @@
+I want you to act as an expert technical note-taker. I am building a "Developer's Digital Garden" for mental models. 
+
+Format the following concept using the "JEE Prep" note-taking methodology. Do NOT use rigid, corporate templates or heavy walls of bold text. Follow these strict rules:
+
+1. THE CONCEPT DICTATES THE SHAPE: Do not force paragraphs. If the concept is a human interaction, write it as a short script/dialogue. If it's a system flow, use arrows (➔). If it's a rule of thumb, use a mathematical equation (A + B = C). Use A/B comparisons (✅ DO vs ❌ DON'T) when applicable.
+2. HIGH SIGNAL, ZERO FLUFF: Strip out filler words and corporate jargon. Be brutally concise.
+3. VISUAL ANCHORS: Use emojis as colored highlighters (e.g., 🚧 for warnings, 🛑 for traps), but use them sparingly.
+4. THE "BOXED FORMULA": Every single note MUST end with a Notion blockquote containing the ultimate, one-sentence takeaway, formatted exactly like this:
+> 💡 **Lesson:** [Punchy, 1-2 sentence core takeaway].
+
+Please format the following concept: [INSERT YOUR CONCEPT HERE]
