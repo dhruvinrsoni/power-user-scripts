@@ -55,32 +55,38 @@ OLLAMA_TIMEOUT     = int(os.environ.get("OLLAMA_TIMEOUT",     "60"))
 # Max fallback models to try after the primary model fails.
 # Keeps the failure path fast — on a busy machine you don't want to wait
 # through 10+ models.  Use -m to manually pick a specific model instead.
-MAX_FALLBACK_MODELS = int(os.environ.get("OLLAMA_MAX_FALLBACKS", "2"))
+MAX_FALLBACK_MODELS = int(os.environ.get("OLLAMA_MAX_FALLBACKS", "3"))
 
 # Max model size (in GB) eligible for automatic fallback.
-# With browsers + IDEs open, models above ~4 GB will likely OOM or swap.
+# Tuned for a 32GB workstation — mid-tier 8B models are safe to fall back to.
+# Raise via OLLAMA_MAX_MODEL_SIZE_GB if you want even heavier fallbacks; lower
+# it on a smaller machine where browsers + IDEs eat RAM.
 # Large models can still be used explicitly via -m (interactive picker).
-OLLAMA_MAX_MODEL_SIZE = int(os.environ.get("OLLAMA_MAX_MODEL_SIZE_GB", "4")) * (1024 ** 3)
+OLLAMA_MAX_MODEL_SIZE = int(os.environ.get("OLLAMA_MAX_MODEL_SIZE_GB", "8")) * (1024 ** 3)
 
 # ---------------------------------------------------------------------------
-# Preferred models for commit message generation — ordered SMALL → LARGE.
-# Smaller models use less RAM and respond faster; larger ones give better quality.
-# The script auto-picks the first model from this list that is actually installed.
+# Preferred models for commit message generation — ordered QUALITY → SPEED.
+# Auto-picker chooses the first INSTALLED model from this list as the primary.
+# Tuned for a 32GB workstation: quality-first primary, with progressively lighter
+# models below it. Automatic fallback (on timeout/OOM/HTTP 5xx) still walks the
+# installed-model list SMALLEST-FIRST — see select_fallback_models() — so a heavy
+# primary failure retries with light models, which are likelier to succeed under
+# memory pressure.
 # Adjust this list to match your preferences.
 # ---------------------------------------------------------------------------
 PREFERRED_MODELS = [
-    "llama3.2:3b",       # 2.0 GB  — fast, compact, solid for commit messages
-    "llama3.2:latest",   # 2.0 GB  — same (tag alias for llama3.2:3b)
-    "gemma3:4b",         # 3.3 GB  — better quality, still compact
+    "gemma3:12b",        # 8.1 GB  — high quality, primary default
+    "gemma3n:e4b",       # 7.5 GB  — strong alternative
+    "llama3.1:8b",       # 4.9 GB  — solid mid-tier (num_ctx=8192 → ~6-7 GB RAM)
+    "gemma3:4b",         # 3.3 GB  — compact, still decent
     "codellama:latest",  # 3.8 GB  — code-aware, reliable
-    "llama2:latest",     # 3.8 GB  — older but dependable fallback
-    "llama3.1:8b",       # 4.9 GB  — best quality (with num_ctx=8192 → ~6-7 GB RAM)
-    "gemma3n:e4b",       # 7.5 GB  — high quality
-    "gemma3:12b",        # 8.1 GB  — highest quality, heavy
+    "llama2:latest",     # 3.8 GB  — older but dependable
+    "llama3.2:latest",   # 2.0 GB  — fast fallback (tag alias for llama3.2:3b)
+    "llama3.2:3b",       # 2.0 GB  — fast fallback (previous default)
 ]
 
 # Default used when PREFERRED_MODELS walk fails completely
-DEFAULT_MODEL = "llama3.2:3b"
+DEFAULT_MODEL = "gemma3:12b"
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -729,9 +735,10 @@ if __name__ == "__main__":
         print(f"🤖 Using model: {target_model} ({target_size}) (Ollama local)\n")
 
     # --- Build fallback chain: local-only models sorted by size (small → large) ---
-    # Filters out cloud/remote models (0 bytes or :cloud suffix) and models too
-    # large for typical RAM availability.  Capped to MAX_FALLBACK_MODELS so the
-    # failure path stays fast.  Use -m to manually pick any model.
+    # Filters out cloud/remote models (0 bytes or :cloud suffix), embedding models
+    # (no chat support — Ollama 400s on /api/chat), and models too large for typical
+    # RAM availability.  Capped to MAX_FALLBACK_MODELS so the failure path stays
+    # fast.  Use -m to manually pick any model.
     _fallback_chain = [
         m["name"]
         for m in sorted(
@@ -739,6 +746,7 @@ if __name__ == "__main__":
              if m["name"] != target_model
              and m["size_bytes"] > 0
              and ":cloud" not in m["name"].lower()
+             and "embed" not in m["name"].lower()
              and m["size_bytes"] <= OLLAMA_MAX_MODEL_SIZE],
             key=lambda m: m["size_bytes"]
         )
