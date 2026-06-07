@@ -1,10 +1,10 @@
 # Python AI commit tools
 
-A family of self-healing scripts that turn `git diff --cached` into a clean,
-conventional commit message. Five backends — Anthropic Claude, Google
-Gemini, OpenAI, Ollama (local), plus a smart wrapper that picks the
-cheapest available — share one CLI surface so flags work the same
-everywhere.
+A single self-healing script (`aic.py`) that turns `git diff --cached` into a
+clean, conventional commit message. One CLI, four providers — Anthropic Claude,
+Google Gemini, OpenAI, and Ollama (local) — selected by auto-detection (Ollama →
+Anthropic → Gemini → OpenAI) or forced with `--provider`. Flags work the same for
+every provider.
 
 For a side-by-side comparison of providers, flags, costs, and setup, see
 the bundled comparison guide:
@@ -15,39 +15,16 @@ the bundled comparison guide:
 
 ---
 
-## The smart wrapper
+## The tool
 
 ### aic.py
 
+`git aic` auto-detects; `git aica` / `git aicg` / `git aico` / `git aicl` are
+thin aliases that pin Anthropic / Gemini / OpenAI / Ollama via `--provider`. The
+provider classes (`AnthropicProvider`, `GeminiProvider`, `OpenAIProvider`,
+`OllamaProvider`) all live inside this one module.
+
 ::: aic
-    options:
-      show_source: false
-
----
-
-## Provider backends
-
-### aica.py — Anthropic Claude
-
-::: aica
-    options:
-      show_source: false
-
-### aicg.py — Google Gemini
-
-::: aicg
-    options:
-      show_source: false
-
-### aico.py — OpenAI
-
-::: aico
-    options:
-      show_source: false
-
-### aicl.py — Ollama (local)
-
-::: aicl
     options:
       show_source: false
 

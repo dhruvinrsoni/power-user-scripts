@@ -27,8 +27,9 @@ hide:
 
     ---
 
-    Five LLM providers, one wrapper. Auto-detects the cheapest available
-    provider and generates conventional commit messages.
+    Four AI providers in one tool. Auto-detects the best available
+    (Ollama → Anthropic → Gemini → OpenAI) and generates conventional
+    commit messages.
 
     [:octicons-arrow-right-24: Open](python.md)
 
