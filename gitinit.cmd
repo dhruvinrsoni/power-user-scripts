@@ -2,6 +2,7 @@
 git --no-pager config --list --show-origin
 gh alias list
 
+REM --- core / shell / credentials ---
 REM # core.shell: Sets the default shell Git uses for executing external commands (like aliases or hooks) to Bash, enabling cross-platform script compatibility.
 git config --global core.shell "C:\Program Files\Git\bin\bash.exe"
 
@@ -19,11 +20,69 @@ git config --global user.email
 git config --global user.signingkey 
 git config --global commit.gpgSign true
 
-@REM To auto-delete local branch if remote is deleted upon git fetch or git pull
+REM --- modern defaults (auto-config layer) ---
+REM push.autoSetupRemote: auto-set upstream on first push of a new branch (Git 2.37+)
+git config --global push.autoSetupRemote true
+REM push.default simple: push the current branch to its same-named upstream only
+git config --global push.default simple
+REM push.followTags: auto-push annotated tags reachable from the pushed commits
+git config --global push.followTags true
+REM pull.ff only: refuse silent merge-commits on pull; stop and let you pick rebase or merge
+git config --global pull.ff only
+REM fetch.prune: drop local remote-tracking refs that were deleted on the remote
 git config --global fetch.prune true
+REM fetch.pruneTags: also drop local tags that were deleted on the remote
+git config --global fetch.pruneTags true
+REM init.defaultBranch: new repos start on 'main' instead of 'master'
+git config --global init.defaultBranch main
+REM branch.sort: 'git branch' lists most-recently-committed branches first
+git config --global branch.sort "-committerdate"
+REM tag.sort: 'git tag' sorts tags as versions, e.g. v1.2.10 after v1.2.9
+git config --global tag.sort version:refname
+REM column.ui: show branch/tag/status listings in neat multiple columns
+git config --global column.ui auto
+REM rebase.autoStash: auto stash and pop a dirty working tree around a rebase
+git config --global rebase.autoStash true
+REM rebase.autosquash: auto-order fixup! and squash! commits in interactive rebase
+git config --global rebase.autosquash true
+REM rebase.updateRefs: auto-move stacked-branch pointers during a rebase
+git config --global rebase.updateRefs true
+REM rerere.enabled: record and replay how you resolved past merge conflicts
+git config --global rerere.enabled true
+REM rerere.autoUpdate: auto-stage files that rerere re-resolves for you
+git config --global rerere.autoUpdate true
+REM merge.conflictStyle: conflict markers also show the common ancestor, via zdiff3
+git config --global merge.conflictStyle zdiff3
+REM diff.algorithm: produce cleaner diff hunks than the default Myers algorithm
+git config --global diff.algorithm histogram
+REM diff.colorMoved: color moved lines distinctly from added and removed lines
+git config --global diff.colorMoved zebra
+REM diff.colorMovedWS: ignore indentation-only changes when detecting moved lines
+git config --global diff.colorMovedWS allow-indentation-change
+REM diff.mnemonicPrefix: use i/ w/ c/ prefixes instead of the meaningless a/ b/
+git config --global diff.mnemonicPrefix true
+REM diff.renames: detect both renames and copies in diffs
+git config --global diff.renames copies
+REM commit.verbose: show the full diff in the commit-message editor while writing
+git config --global commit.verbose true
+REM log.date: show ISO-8601 dates in plain 'git log'
+git config --global log.date iso
+REM help.autocorrect: on a mistyped command, ask before running the correction
+git config --global help.autocorrect prompt
+REM core.fsmonitor: built-in filesystem monitor speeds up status/add on big repos
+git config --global core.fsmonitor true
+REM core.untrackedCache: cache the untracked-file scan for a faster status
+git config --global core.untrackedCache true
+REM core.autocrlf input: convert CRLF to LF on commit, leave working files as-is, never prompts
+git config --global core.autocrlf input
+REM transfer.fsckObjects: verify object integrity on clone, fetch and push
+git config --global transfer.fsckObjects true
 
-REM # fetch.pruneTags true: Automatically deletes local tags if they have been removed from the remote repository.
-REM git config --global fetch.pruneTags true
+REM submodules: uncomment the day you start using submodules (a git repo nested in a repo)
+REM submodule.recurse: auto-update nested submodules on pull and checkout
+REM git config --global submodule.recurse true
+REM status.submoduleSummary: show submodule changes inside 'git status'
+REM git config --global status.submoduleSummary true
 
 REM git config --global gpg.program "%ROOT%\ProgramFiles(x86)\Gpg4win\bin\gpg.exe"
 git config --global gpg.program "C:\Program Files\GnuPG\bin\gpg.exe"
@@ -40,6 +99,7 @@ REM git config --global alias.sanitize "!git restore --staged --worktree */.clas
 @REM ssh git@github.com
 @REM git branch
 
+REM --- editor & merge/diff tools ---
 REM git config --global core.editor "code --new-window --wait"
 REM git config --global core.editor "code --new-window --wait --profile git-commit"
 git config --global core.editor "%ROOT%\ProgramFiles\Notepad++\notepad++.exe -multiInst -notabbar -nosession -noPlugin"
@@ -53,6 +113,7 @@ git config --global alias.dhruvinrsoni "^!git config --get user.name && git conf
 @echo on
 git config --global --remove-section alias
 
+REM --- aliases ---
 git config --global alias.ad "add --dry-run --update ."
 git config --global alias.adall "add ."
 git config --global alias.adu "add --update"
@@ -65,7 +126,8 @@ git config --global alias.c "comit"
 git config --global alias.cd "comit --dry-run"
 git config --global alias.ci "comit --interactive"
 git config --global alias.cip "comit --interactive --patch"
-git config --global alias.comit "commit --no-quiet --verbose --branch --ahead-behind --status --signoff"
+REM commit.verbose=true (set above) now shows the diff in the editor, so --verbose dropped here
+git config --global alias.comit "commit --no-quiet --branch --ahead-behind --status --signoff"
 git config --global alias.commithash "rev-parse --short=8 HEAD"
 :: git config --global alias.commitinfo "commit --no-quiet --verbose --branch --ahead-behind --status"
 git config --global alias.co "checkout --progress"
