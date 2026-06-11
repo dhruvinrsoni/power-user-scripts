@@ -309,6 +309,10 @@ type "%TEMP_SCRIPT%"
 call "%TEMP_SCRIPT%"
 GOTO exit0
 
+:update
+powershell -NoProfile -Command "Start-Process powershell -Wait -Verb RunAs -ArgumentList '-NoProfile -Command winget upgrade --all --include-unknown --accept-package-agreements --accept-source-agreements; choco upgrade all -y; npm update -g; Update-Module -Force'"
+GOTO exit0
+
 :vars
 FOR /f "usebackq tokens=* delims==" %%i in (`findstr /B /I "SET" "%DOSFILE%\..\doskeys.cmd"`) do (ECHO %%i)
 timeout /t -1 /nobreak
