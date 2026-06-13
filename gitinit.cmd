@@ -29,6 +29,10 @@ REM push.followTags: auto-push annotated tags reachable from the pushed commits
 git config --global push.followTags true
 REM pull.ff only: refuse silent merge-commits on pull; stop and let you pick rebase or merge
 git config --global pull.ff only
+REM pull.rebase true: makes 'git pull' ALWAYS rebase your local commits on top — no merge commits, linear history.
+REM   How they relate: pull.rebase wins over pull.ff. Leave it commented to keep pull.ff's "stop & let me choose";
+REM   uncomment it if you'd rather pull always rebase automatically. Pick one mental model, not both.
+REM git config --global pull.rebase true
 REM fetch.prune: drop local remote-tracking refs that were deleted on the remote
 git config --global fetch.prune true
 REM fetch.pruneTags: also drop local tags that were deleted on the remote
@@ -43,6 +47,8 @@ REM column.ui: show branch/tag/status listings in neat multiple columns
 git config --global column.ui auto
 REM rebase.autoStash: auto stash and pop a dirty working tree around a rebase
 git config --global rebase.autoStash true
+REM merge.autoStash: auto stash and pop a dirty working tree around a merge (same convenience as rebase.autoStash, but for merges)
+git config --global merge.autoStash true
 REM rebase.autosquash: auto-order fixup! and squash! commits in interactive rebase
 git config --global rebase.autosquash true
 REM rebase.updateRefs: auto-move stacked-branch pointers during a rebase
